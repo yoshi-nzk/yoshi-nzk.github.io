@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+<title>Web Bluetooth API Console</title>
+</head>
+ 
+<body>
+<form name="js">
+<h1>Web Bluetooth API Console</h1>
+<input type="button" value="接続" onclick="connect();"/> 
+<input type="button" value="切断" onclick="disconnect();" /> 
+<br />
+<input type="text" id="sendInput" />
+<input type="button" value="Send" onclick="SendButton_click();" />
+<br />
+
+<hr>
+<p>加速度</p>
+    <ul>
+        <li id="accel_x">0</li>
+        <li id="accel_y">0</li>
+        <li id="accel_z">0</li>
+    </ul>
+    <hr>
+    <p>角速度</p>
+    <ul>
+        <li id="gyro_x">0</li>
+        <li id="gyro_y">0</li>
+        <li id="gyro_z">0</li>
+    </ul>
+    <hr>
+    <p>姿勢角</p>
+    <ul>
+        <li id="pitch">0</li>
+        <li id="roll">0</li>
+        <li id="yaw">0</li>
+    </ul>
+    <hr>
+    <p>地磁気</p>
+    <ul>
+        <li id="mag_x">0</li>
+        <li id="mag_y">0</li>
+        <li id="mag_z">0</li>
+    </ul>
+    <hr>
+    <p>ステータス</p>
+    <ul>
+        <li id="sd_status">不明</li>
+        <li id="gps_status">不明</li>
+        <li id="battery">0</li>
+    </ul>
+    <hr>
+    <p>その他</p>
+    <ul>
+        <li id="compass">0</li>
+        <li id="pressure">0</li>
+        <li id="altitude">0</li>
+    </ul>
+</form>
+
+<script>
+
+	// BLE接続用
+	let keyDevice;
+	let keyServer;
+	let keyService;
+	
+	//var accelerometer_device;
+	//var accelerometer_characteristic;
+	 
+	//micro:bit BLE UUID
+	//var ACCELEROMETERSERVICE_SERVICE_UUID       = 'e95d0753-251d-470a-a062-fa1922dfa9a8';
+	//var ACCELEROMETERSERVICE_SERVICE_UUID       = '01020304-0506-0708-0900-0a0b0c0d0e0f';
+	//var ACCELEROMETERDATA_CHARACTERISTIC_UUID   = 'e95dca4b-251d-470a-a062-fa1922dfa9a8';
+	//var ACCELEROMETERDATA_CHARACTERISTIC_UUID   = '11223344-5566-7788-9900-aabbccddeefe';
+	
+	var SENSORLOGGER_SERVICE_UUID          = '6f565fda-2747-492a-76af-bed5cbed5bf1';
+	var COMMAND_WRITE_CHARACTERISTIC_UUID  = '6f565f01-2747-492a-76af-bed5cbed5bf1';
+	var SENSOR_READ_CHARACTERISTIC_UUID    = '6f565f81-2747-492a-76af-bed5cbed5bf1';
+	var GPS_READ_CHARACTERISTIC_UUID       = '6f565f82-2747-492a-76af-bed5cbed5bf1';
+	var EXTERNAL_READ_CHARACTERISTIC_UUID  = '6f565f83-2747-492a-76af-bed5cbed5bf1';
+	var STATUS_READ_CHARACTERISTIC_UUID    = '6f565f84-2747-492a-76af-bed5cbed5bf1';
+	var EEPROM_READ_CHARACTERISTIC_UUID    = '6f565f85-2747-492a-76af-bed5cbed5bf1';
+
+
+	var accel = [0, 0, 0];
+    var gyro = [0, 0, 0];
+    var mag = [0, 0, 0];
+    var euler = [0, 0, 0];
+	
+	var imu_temp = 0;
+	var pressure = 0;
+    var pres_temp = 0;
+    var altitude = 0;
+	var sd_status = false;
+    var gps_status = false;
+    var battery = 0;
+    var pressure_zero = 1013;
+
+ 
+	function connect() {
+	  navigator.bluetooth.requestDevice({
+		filters: [{ namePrefix: 'RN', }],
+		optionalServices: [SENSORLOGGER_SERVICE_UUID]
+	  })
+	  .then(device => {
+		keyDevice = device;
+		console.log("device", device);
+		return device.gatt.connect();
+	  })
+	  //ACCELEROMETER
+	  .then(server =>{
+		keyServer = server;
+		console.log("server", server)
+		return server.getPrimaryService(SENSORLOGGER_SERVICE_UUID);
+	  })
+	  .then(service => {
+		keyService = service;
+		console.log("service", service)
+		//return service.getCharacteristic(ACCELEROMETERDATA_CHARACTERISTIC_UUID)
+		return Promise.all([
+        service.getCharacteristic(COMMAND_WRITE_CHARACTERISTIC_UUID),
+        service.getCharacteristic(SENSOR_READ_CHARACTERISTIC_UUID),
+		service.getCharacteristic(GPS_READ_CHARACTERISTIC_UUID),
+        service.getCharacteristic(EXTERNAL_READ_CHARACTERISTIC_UUID),
+		service.getCharacteristic(STATUS_READ_CHARACTERISTIC_UUID),
+        service.getCharacteristic(EEPROM_READ_CHARACTERISTIC_UUID)
+    ]); 
+	  })
+	  .then(chara => {
+		console.log("characteristic:", chara)
+		alert("BLE接続が完了しました。");
+		/*characteristic = chara;
+		characteristic.startNotifications();
+		characteristic.addEventListener('characteristicvaluechanged',onAccelerometerValueChanged); */ 
+		
+		chara[1].startNotifications();
+		chara[2].startNotifications();
+		chara[3].startNotifications();
+		chara[4].startNotifications();
+		
+		chara[1].oncharacteristicvaluechanged = onSensorReadValueChanged;
+		chara[2].oncharacteristicvaluechanged = onGPSReadValueChanged;
+		chara[3].oncharacteristicvaluechanged = onExternalReadValueChanged;
+		chara[4].oncharacteristicvaluechanged = onStatusReadValueChanged;
+		
+	  })  
+	  .catch(error => {
+		alert("BLE接続に失敗しました。もう一度試してみてください");
+		console.log(error);
+	  });    
+	}
+	
+	function SendButton_click() {
+		const text = document.getElementById('sendInput').value;
+		document.getElementById('sendInput').value = "";
+
+		var buffer = (new TextEncoder).encode(text);
+		
+		keyService.getCharacteristic(COMMAND_WRITE_CHARACTERISTIC_UUID)
+        .then(characteristic => {
+            characteristic.writeValue(buffer);
+		//chara[0].writeValue(buffer);
+		//sendSerial(text + "\n");
+		})
+    }
+	 
+	function onSensorReadValueChanged(event) {
+		/*AcceleratorX = event.target.value.getUint16(0, true);
+		console.log('x:' + AcceleratorX);
+		document.js.x.value = AcceleratorX;
+
+		AcceleratorY = event.target.value.getUint16(2, true);
+		console.log('y:' + AcceleratorY);
+		document.js.y.value = AcceleratorY;
+
+		AcceleratorZ = event.target.value.getUint16(4, true);
+		console.log('z:' + AcceleratorZ);
+		document.js.z.value = AcceleratorZ;*/
+		
+		let dat = new DataView(event.target.value.buffer, 0);
+		
+		accel[0] = dat.getInt16(0, true) / 16384; // X加速度算出
+		accel[1] = dat.getInt16(2, true) / 16384; // Y加速度算出
+		accel[2] = dat.getInt16(4, true) / 16384; // Z加速度算出
+		
+		gyro[0] = dat.getInt16(6, true) / 131; // X角速度算出
+		gyro[1] = dat.getInt16(8, true) / 131; // Y角速度算出
+		gyro[2] = dat.getInt16(10, true) / 131; // Z角速度算出
+		
+		euler[0] = dat.getInt16(12, true) / 100; // ピッチ算出
+		euler[1] = dat.getInt16(14, true) / 100; // ロール算出
+		euler[2] = dat.getInt16(16, true) / 100; // ヨー算出
+		
+		imu_temp = dat.getInt16(18, true) / 10;
+		
+		pressure = dat.getInt32(20, true) / 100;
+		pres_temp = dat.getInt16(24, true) / 10;
+
+		altitude = (Math.pow(pressure_zero / pressure, 1 / 5.257) - 1) * (pres_temp + 273.15) / 0.0065;
+		
+		mag[0] = dat.getInt16(26, true) / 0.73; // X地磁気算出
+		mag[1] = dat.getInt16(28, true) / 0.73; // Y地磁気算出
+		mag[2] = dat.getInt16(30, true) / 0.73; // Z地磁気算出
+		
+		document.getElementById('accel_x').textContent = "x=" + String(accel[0].toFixed(2)) + "g";
+		document.getElementById('accel_y').textContent = "y=" + String(accel[1].toFixed(2)) + "g";
+		document.getElementById('accel_z').textContent = "z=" + String(accel[2].toFixed(2)) + "g";
+
+		document.getElementById('gyro_x').textContent = "x=" + String(gyro[0].toFixed(2)) + "deg/s";
+		document.getElementById('gyro_y').textContent = "y=" + String(gyro[1].toFixed(2)) + "deg/s";
+		document.getElementById('gyro_z').textContent = "z=" + String(gyro[2].toFixed(2)) + "deg/s";
+		
+		document.getElementById('pitch').textContent = "x=" + String(euler[0].toFixed(2)) + "deg";
+		document.getElementById('roll').textContent = "y=" + String(euler[1].toFixed(2)) + "deg";
+		document.getElementById('yaw').textContent = "z=" + String(euler[2].toFixed(2)) + "deg";
+		
+		document.getElementById('mag_x').textContent = "x=" + String(mag[0].toFixed(2)) + "mG";
+		document.getElementById('mag_y').textContent = "y=" + String(mag[1].toFixed(2)) + "mG";
+		document.getElementById('mag_z').textContent = "z=" + String(mag[2].toFixed(2)) + "mG";
+		
+		document.getElementById('pressure').textContent = "気圧=" + String(pressure.toFixed(2)) + "hPa";
+        document.getElementById('altitude').textContent = "高度=" + String(altitude.toFixed(1)) + "m";
+
+	} 
+	
+	function onGPSReadValueChanged(event) {
+	}
+	
+	function onExternalReadValueChanged(event) {
+	}
+	
+	function onStatusReadValueChanged(event) {
+		let dat = new DataView(event.target.value.buffer, 0);
+		let sdc_str, gps_str;
+
+		if (dat.getUint8(0) == 2)
+		{
+			sdc_str = "動作中";
+		}
+		else
+		{
+			sdc_str = "停止";
+		}
+
+		if (dat.getUint8(1) == 1)
+		{
+			gps_str = "補足中";
+		}
+		else if (dat.getUint8(1) == 2)
+		{
+			gps_str = "補足中（DGPS）";
+		}
+		else
+		{
+			gps_str = "未補足";
+		}
+
+		battery = dat.getInt16(2, false) / 1000;
+
+		document.getElementById('sd_status').textContent = "SDカード:" + sdc_str;
+		document.getElementById('gps_status').textContent = "GPS:" + gps_str;
+		document.getElementById('battery').textContent = "電源:" + String(battery.toFixed(2)) + "V";
+	}
+	 
+	function disconnect() {
+	  if (!keyDevice || !keyDevice.gatt.connected) return ;
+	  keyDevice.gatt.disconnect();
+	  alert("BLE接続を切断しました。")
+	}
+ 
+</script>    
+</body>
+</html>
