@@ -51,6 +51,20 @@
         <li id="gps_status">不明</li>
         <li id="battery">0</li>
     </ul>
+	<hr>
+    <p>外部データ</p>
+    <ul>
+        <li id="ex_data1">0</li>
+        <li id="ex_data2">0</li>
+        <li id="ex_data3">0</li>
+		<li id="ex_data4">0</li>
+		<li id="ex_data5">0</li>
+		<li id="ex_data6">0</li>
+		<li id="ex_data7">0</li>
+		<li id="ane_speed">0</li>
+		<li id="ane_temp">0</li>
+    </ul>
+	<input type="button" value="ゼロオフセット" onclick="ane_offset_click();"/> 
     <hr>
     <p>その他</p>
     <ul>
@@ -89,6 +103,7 @@
     var gyro = [0, 0, 0];
     var mag = [0, 0, 0];
     var euler = [0, 0, 0];
+	var ex_data = [0, 0, 0, 0, 0, 0, 0];
 	
 	var imu_temp = 0;
 	var pressure = 0;
@@ -98,6 +113,9 @@
     var gps_status = false;
     var battery = 0;
     var pressure_zero = 1013;
+	var ane_speed = 0;
+	var ane_temp = 0;
+	var ane_offset = 0;
 
  
 	function connect() {
@@ -230,6 +248,34 @@
 	}
 	
 	function onExternalReadValueChanged(event) {
+		let dat = new DataView(event.target.value.buffer, 0);
+		
+		ex_data[0] = dat.getInt16(0, false);
+		ex_data[1] = dat.getInt16(2, false);
+		ex_data[2] = dat.getInt16(4, true);
+		ex_data[3] = dat.getInt16(6, true);
+		ex_data[4] = dat.getInt16(8, true);
+		ex_data[5] = dat.getInt16(10, true);
+		ex_data[6] = dat.getInt16(12, true);
+		
+		ane_temp = (ex_data[1] - 511) * 0.09765625;
+		d = 395.673 * Math.sqrt((ex_data[0]+ane_offset)*0.0676*(1.0+0.00366*ane_temp)/101325.0);
+		if(d >= 1){
+			ane_speed = d;
+		}
+		else{
+			ane_speed = 0;
+		}
+		
+		document.getElementById('ex_data1').textContent = String(ex_data[0]);
+		document.getElementById('ex_data2').textContent = String(ex_data[1]);
+		document.getElementById('ex_data3').textContent = String(ex_data[2]);
+		document.getElementById('ex_data4').textContent = String(ex_data[3]);
+		document.getElementById('ex_data5').textContent = String(ex_data[4]);
+		document.getElementById('ex_data6').textContent = String(ex_data[5]);
+		document.getElementById('ex_data7').textContent = String(ex_data[6]);
+		document.getElementById('ane_speed').textContent = "風速=" + String(ane_speed.toFixed(1)) + "m/s";
+		document.getElementById('ane_temp').textContent = "温度=" + String(ane_temp.toFixed(1)) + "℃";
 	}
 	
 	function onStatusReadValueChanged(event) {
@@ -269,6 +315,10 @@
 	  if (!keyDevice || !keyDevice.gatt.connected) return ;
 	  keyDevice.gatt.disconnect();
 	  alert("BLE接続を切断しました。")
+	}
+	
+	function ane_offset_click() {
+	  ane_offset = 0 - ex_data[0];
 	}
  
 </script>    
