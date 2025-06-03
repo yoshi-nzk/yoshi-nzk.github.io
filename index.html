@@ -14,7 +14,12 @@
 <br />
 <input type="text" id="sendInput" />
 <input type="button" value="Send" onclick="SendButton_click();" />
-<br />
+
+<hr>
+<input type="button" value="SENSOR_Notify" onclick="NotifyButton_SENSOR_click();" />
+<input type="button" value="GPS_Notify" onclick="NotifyButton_GPS_click();" />
+<input type="button" value="EXTERNAL_Notify" onclick="NotifyButton_EXTERNAL_click();" />
+<input type="button" value="STATUS_Notify" onclick="NotifyButton_STATUS_click();" />
 
 <hr>
 <p>加速度</p>
@@ -184,6 +189,34 @@
 		//sendSerial(text + "\n");
 		})
     }
+	
+	function NotifyButton_SENSOR_click(){
+		keyService.getCharacteristic(SENSOR_READ_CHARACTERISTIC_UUID)
+        .then(characteristic => {
+            characteristic.startNotifications();
+		})
+	}
+	
+	function NotifyButton_GPS_click(){
+		keyService.getCharacteristic(GPS_READ_CHARACTERISTIC_UUID)
+        .then(characteristic => {
+            characteristic.startNotifications();
+		})
+	}
+	
+	function NotifyButton_EXTERNAL_click(){
+		keyService.getCharacteristic(EXTERNAL_READ_CHARACTERISTIC_UUID)
+        .then(characteristic => {
+            characteristic.startNotifications();
+		})
+	}
+	
+	function NotifyButton_STATUS_click(){
+		keyService.getCharacteristic(STATUS_READ_CHARACTERISTIC_UUID)
+        .then(characteristic => {
+            characteristic.startNotifications();
+		})
+	}
 	 
 	function onSensorReadValueChanged(event) {
 		/*AcceleratorX = event.target.value.getUint16(0, true);
