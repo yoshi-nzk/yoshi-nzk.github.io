@@ -57,6 +57,14 @@
         <li id="battery">0</li>
     </ul>
 	<hr>
+	<p>GPS</p>
+    <ul>
+        <li id="latitude">0</li>
+        <li id="longitude">0</li>
+        <li id="gspeed">0</li>
+		<li id="heading">0</li>
+    </ul>
+	<hr>
     <p>外部データ</p>
     <ul>
         <li id="ex_data1">0</li>
@@ -278,6 +286,17 @@
 	} 
 	
 	function onGPSReadValueChanged(event) {
+		let dat = new DataView(event.target.value.buffer, 0);
+		
+		latitude = dat.getInt32(0, true) / 10000000;
+		longitude = dat.getInt32(4, true) / 10000000;
+		gspeed = dat.getInt32(8, true) / 100;
+		heading = dat.getInt32(12, true) / 10000;
+				
+		document.getElementById('latitude').textContent = "緯度=" + String(latitude.toFixed(7));
+		document.getElementById('longitude').textContent = "経度=" + String(longitude.toFixed(7));
+		document.getElementById('gspeed').textContent = "速度=" + String(gspeed.toFixed(2)) + "m/s";
+		document.getElementById('heading').textContent = "方角=" + String(heading.toFixed(1)) + "deg";
 	}
 	
 	function onExternalReadValueChanged(event) {
