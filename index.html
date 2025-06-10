@@ -3,7 +3,28 @@
 <head>
 <meta charset="utf-8" />
 <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+<link href="style.css" rel="stylesheet" />
 <title>Web Bluetooth API Console</title>
+    <style>
+		html{
+            font-size: 100%;
+        }
+
+        body {
+            width: 90%;
+            max-width: 900px;
+            margin: 2em auto;
+            /*font: .9em/1.2 Arial, Helvetica, sans-serif;*/
+			font: .9em/1.2
+        }
+
+        .container > div {
+            border-radius: 5px;
+            padding: 10px;
+            background-color: rgb(207,232,220);
+            border: 2px solid cornflowerblue;
+        }
+    </style>
 </head>
  
 <body>
@@ -22,69 +43,87 @@
 <input type="button" value="STATUS_Notify" onclick="NotifyButton_STATUS_click();" />
 
 <hr>
-<p>加速度</p>
-    <ul>
-        <li id="accel_x">0</li>
-        <li id="accel_y">0</li>
-        <li id="accel_z">0</li>
-    </ul>
-    <hr>
-    <p>角速度</p>
-    <ul>
-        <li id="gyro_x">0</li>
-        <li id="gyro_y">0</li>
-        <li id="gyro_z">0</li>
-    </ul>
-    <hr>
-    <p>姿勢角</p>
-    <ul>
-        <li id="pitch">0</li>
-        <li id="roll">0</li>
-        <li id="yaw">0</li>
-    </ul>
-    <hr>
-    <p>地磁気</p>
-    <ul>
-        <li id="mag_x">0</li>
-        <li id="mag_y">0</li>
-        <li id="mag_z">0</li>
-    </ul>
-    <hr>
-    <p>ステータス</p>
-    <ul>
-        <li id="sd_status">不明</li>
-        <li id="gps_status">不明</li>
-        <li id="battery">0</li>
-    </ul>
-	<hr>
-	<p>GPS</p>
-    <ul>
-        <li id="latitude">0</li>
-        <li id="longitude">0</li>
-        <li id="gspeed">0</li>
-		<li id="heading">0</li>
-    </ul>
-	<hr>
-    <p>外部データ</p>
-    <ul>
-        <li id="ex_data1">0</li>
-        <li id="ex_data2">0</li>
-        <li id="ex_data3">0</li>
-		<li id="ex_data4">0</li>
-		<li id="ex_data5">0</li>
-		<li id="ex_data6">0</li>
-		<li id="ex_data7">0</li>
-		<li id="ane_speed">0</li>
-		<li id="ane_temp">0</li>
-    </ul>
-	<input type="button" value="ゼロオフセット" onclick="ane_offset_click();"/> 
-    <hr>
-    <p>その他</p>
-    <ul>
-        <li id="compass">0</li>
-        <li id="pressure">0</li>
-        <li id="altitude">0</li>
-    </ul>
+<div class="container">
+	<div>
+		<p>加速度</p>
+		<ul>
+			<li id="accel_x">0</li>
+			<li id="accel_y">0</li>
+			<li id="accel_z">0</li>
+		</ul>
+	</div>
+	
+	<div>
+		<p>角速度</p>
+		<ul>
+			<li id="gyro_x">0</li>
+			<li id="gyro_y">0</li>
+			<li id="gyro_z">0</li>
+		</ul>
+	</div>
+
+	<div>
+		<p>姿勢角</p>
+		<ul>
+			<li id="pitch">0</li>
+			<li id="roll">0</li>
+			<li id="yaw">0</li>
+		</ul>
+	</div>
+
+	<div>
+		<p>地磁気</p>
+		<ul>
+			<li id="mag_x">0</li>
+			<li id="mag_y">0</li>
+			<li id="mag_z">0</li>
+		</ul>
+	</div>
+
+	<div>
+		<p>ステータス</p>
+		<ul>
+			<li id="sd_status">不明</li>
+			<li id="gps_status">不明</li>
+			<li id="battery">0</li>
+		</ul>
+	</div>
+
+	<div>
+		<p>GPS</p>
+		<ul>
+			<li id="latitude">0</li>
+			<li id="longitude">0</li>
+			<li id="gspeed">0</li>
+			<li id="heading">0</li>
+		</ul>
+	</div>
+
+	<div>
+		<p>外部データ</p>
+		<ul>
+			<li id="ex_data1">0</li>
+			<li id="ex_data2">0</li>
+			<li id="ex_data3">0</li>
+			<li id="ex_data4">0</li>
+			<li id="ex_data5">0</li>
+			<li id="ex_data6">0</li>
+			<li id="ex_data7">0</li>
+			<li id="ane_speed">0</li>
+			<li id="ane_temp">0</li>
+		</ul>
+		<input type="button" value="ゼロオフセット" onclick="ane_offset_click();"/> 
+	</div>
+
+	<div>
+		<p>その他</p>
+		<ul>
+			<li id="compass">0</li>
+			<li id="pressure">0</li>
+			<li id="altitude">0</li>
+		</ul>
+	</div>
+</div>
 </form>
 
 <script>
@@ -282,6 +321,32 @@
 		
 		document.getElementById('pressure').textContent = "気圧=" + String(pressure.toFixed(2)) + "hPa";
         document.getElementById('altitude').textContent = "高度=" + String(altitude.toFixed(1)) + "m";
+		
+		//方位角三次元計算
+		var m = Math.sqrt(mag[0] * mag[0] + mag[1] * mag[1] + mag[2] * mag[2]);
+		mag[0] /= m;
+		mag[1] /= m;
+		mag[2] /= m;
+		var hx = mag[1] * accel[2] - mag[2] * accel[1];
+		var hy = mag[2] * accel[0] - mag[0] * accel[2];
+		var hz = mag[0] * accel[1] - mag[1] * accel[0];
+		var h = Math.sqrt(hx * hx + hy * hy + hz * hz);
+
+		var rx = accel[1] * hz - accel[2] * hy;
+		var ry = accel[2] * hx - accel[0] * hz;
+		var rz = accel[0] * hy - accel[1] * hx;
+		var r = Math.sqrt(rx * rx + ry * ry + rz * rz);
+
+		var head = Math.atan2(rx / r, hx / h);
+		dat_decimal = head * 180 / Math.PI;
+		if (dat_decimal < 0)
+		{
+			dat_decimal += 360;
+		}
+		//compass_dat = Math.round(dat_decimal, 2, MidpointRounding.AwayFromZero);
+		compass_dat = dat_decimal;
+		
+		document.getElementById('compass').textContent = "方位=" + String(compass_dat.toFixed(1)) + "deg";
 
 	} 
 	
@@ -291,7 +356,7 @@
 		latitude = dat.getInt32(0, true) / 10000000;
 		longitude = dat.getInt32(4, true) / 10000000;
 		gspeed = dat.getInt32(8, true) / 100;
-		heading = dat.getInt32(12, true) / 10000;
+		heading = dat.getInt32(12, true) / 100000;
 				
 		document.getElementById('latitude').textContent = "緯度=" + String(latitude.toFixed(7));
 		document.getElementById('longitude').textContent = "経度=" + String(longitude.toFixed(7));
