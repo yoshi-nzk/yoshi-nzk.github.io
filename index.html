@@ -207,27 +207,17 @@
 		characteristic.startNotifications();
 		characteristic.addEventListener('characteristicvaluechanged',onAccelerometerValueChanged); */ 
 		
-		return Promise.all([
-        chara[1].startNotifications(),
-        chara[2].startNotifications(),
-		chara[3].startNotifications(),
-        chara[4].startNotifications(),
-		chara[1].oncharacteristicvaluechanged = onSensorReadValueChanged,
-		chara[2].oncharacteristicvaluechanged = onGPSReadValueChanged,
-		chara[3].oncharacteristicvaluechanged = onExternalReadValueChanged,
-		chara[4].oncharacteristicvaluechanged = onStatusReadValueChanged
-    ]);
-		/*chara[1].startNotifications();
+		chara[1].startNotifications();
 		chara[2].startNotifications();
 		chara[3].startNotifications();
-		chara[4].startNotifications();*/
+		chara[4].startNotifications();
 		
-		/*chara[1].oncharacteristicvaluechanged = onSensorReadValueChanged;
+		chara[1].oncharacteristicvaluechanged = onSensorReadValueChanged;
 		chara[2].oncharacteristicvaluechanged = onGPSReadValueChanged;
 		chara[3].oncharacteristicvaluechanged = onExternalReadValueChanged;
-		chara[4].oncharacteristicvaluechanged = onStatusReadValueChanged;*/
+		chara[4].oncharacteristicvaluechanged = onStatusReadValueChanged;
 		
-	  })
+	  })  
 	  .catch(error => {
 		alert("BLE接続に失敗しました。もう一度試してみてください");
 		console.log(error);
@@ -387,7 +377,8 @@
 		ex_data[6] = dat.getInt16(12, true);
 		
 		ane_temp = (ex_data[1] - 511) * 0.09765625;
-		d = 395.673 * Math.sqrt((ex_data[0]+ane_offset)*0.0676*(1.0+0.00366*ane_temp)/101325.0);
+		//d = 395.673 * Math.sqrt((ex_data[0]+ane_offset)*0.0676*(1.0+0.00366*ane_temp)/101325.0);
+		d = 395.673 * Math.sqrt(((ex_data[0]+ane_offset)*0.95)*0.0676*(1.0+0.00366*ane_temp)/101325.0);
 		if(d >= 1){
 			ane_speed = d;
 		}
