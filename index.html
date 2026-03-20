@@ -4,442 +4,908 @@
 <meta charset="utf-8" />
 <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, user-scalable=yes">
-<link href="style.css" rel="stylesheet" />
-<title>Web Bluetooth API Console</title>
-    <style>
-		html{
-            font-size: 100%;
-        }
+<title>Sensor Logger</title>
+<style>
+  html { font-size: 100%; }
 
-        body {
-            width: 90%;
-            max-width: 900px;
-            margin: 2em auto;
-            /*font: .9em/1.2 Arial, Helvetica, sans-serif;*/
-			font: .9em/1.2
-        }
+  body {
+    width: 95%;
+    max-width: 1100px;
+    margin: 1em auto;
+    font: .9em/1.4 Arial, Helvetica, sans-serif;
+  }
 
-        .container > div {
-            border-radius: 5px;
-            padding: 10px;
-            background-color: rgb(207,232,220);
-            border: 2px solid cornflowerblue;
-        }
-    </style>
+  h1 { margin: 0 0 0.5em; font-size: 1.4em; }
+
+  .ctrl-bar {
+    background: #eef;
+    border: 1px solid #99b;
+    border-radius: 5px;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .ctrl-bar label { font-weight: bold; }
+
+  .section-ble, .section-serial {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .section-ble { display: none; }
+  .section-serial { display: none; }
+
+  .cmd-bar {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+
+  .cmd-bar input[type=text] { width: 180px; }
+
+  .op-bar {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+
+  button {
+    padding: 4px 10px;
+    cursor: pointer;
+    border-radius: 3px;
+    border: 1px solid #668;
+    background: #ddf;
+    font-size: .9em;
+  }
+
+  button:hover { background: #bbf; }
+  button:disabled { opacity: 0.5; cursor: default; }
+
+  select { padding: 3px 5px; border-radius: 3px; }
+
+  #status-bar {
+    font-size: .85em;
+    color: #555;
+    margin-bottom: 6px;
+    min-height: 1.2em;
+  }
+
+  .container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+  }
+
+  .container > div {
+    border-radius: 5px;
+    padding: 10px;
+    background-color: rgb(207,232,220);
+    border: 2px solid cornflowerblue;
+  }
+
+  .container > div p {
+    margin: 0 0 6px;
+    font-weight: bold;
+    font-size: .95em;
+    border-bottom: 1px solid cornflowerblue;
+    padding-bottom: 3px;
+  }
+
+  .container > div ul {
+    margin: 0;
+    padding: 0 0 0 1em;
+    list-style: disc;
+  }
+
+  .container > div ul li {
+    font-size: .88em;
+    margin: 2px 0;
+  }
+
+  /* Modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 100;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: #fff;
+    border-radius: 8px;
+    padding: 20px 24px;
+    min-width: 320px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+  }
+
+  .modal h2 { margin: 0 0 12px; font-size: 1.1em; }
+
+  .modal table { border-collapse: collapse; width: 100%; }
+  .modal td { padding: 5px 6px; font-size: .9em; }
+  .modal td:first-child { white-space: nowrap; font-weight: bold; }
+
+  .modal-btns {
+    margin-top: 14px;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+</style>
 </head>
- 
 <body>
-<form name="js">
-<h1>Web Bluetooth API Console</h1>
-<input type="button" value="接続" onclick="connect();"/> 
-<input type="button" value="切断" onclick="disconnect();" /> 
-<br />
-<input type="text" id="sendInput" />
-<input type="button" value="Send" onclick="SendButton_click();" />
 
-<hr>
-<input type="button" value="SENSOR_Notify" onclick="NotifyButton_SENSOR_click();" />
-<input type="button" value="GPS_Notify" onclick="NotifyButton_GPS_click();" />
-<input type="button" value="EXTERNAL_Notify" onclick="NotifyButton_EXTERNAL_click();" />
-<input type="button" value="STATUS_Notify" onclick="NotifyButton_STATUS_click();" />
+<h1>Sensor Logger</h1>
 
-<hr>
-<div class="container">
-	<div>
-		<p>加速度</p>
-		<ul>
-			<li id="accel_x">0</li>
-			<li id="accel_y">0</li>
-			<li id="accel_z">0</li>
-		</ul>
-	</div>
-	
-	<div>
-		<p>角速度</p>
-		<ul>
-			<li id="gyro_x">0</li>
-			<li id="gyro_y">0</li>
-			<li id="gyro_z">0</li>
-		</ul>
-	</div>
+<div class="ctrl-bar">
+  <label>接続モード:</label>
+  <label><input type="radio" name="connMode" value="ble" onchange="onModeChange(this)" checked> Bluetooth</label>
+  <label><input type="radio" name="connMode" value="serial" onchange="onModeChange(this)"> シリアル</label>
 
-	<div>
-		<p>姿勢角</p>
-		<ul>
-			<li id="pitch">0</li>
-			<li id="roll">0</li>
-			<li id="yaw">0</li>
-		</ul>
-	</div>
+  <div class="section-ble" id="sect-ble">
+    BLE:
+    <button id="btn-ble-connect" onclick="bleConnect()">接続</button>
+    <button id="btn-ble-disconnect" onclick="bleDisconnect()" disabled>切断</button>
+  </div>
 
-	<div>
-		<p>地磁気</p>
-		<ul>
-			<li id="mag_x">0</li>
-			<li id="mag_y">0</li>
-			<li id="mag_z">0</li>
-		</ul>
-	</div>
-
-	<div>
-		<p>ステータス</p>
-		<ul>
-			<li id="sd_status">不明</li>
-			<li id="gps_status">不明</li>
-			<li id="battery">0</li>
-		</ul>
-	</div>
-
-	<div>
-		<p>GPS</p>
-		<ul>
-			<li id="latitude">0</li>
-			<li id="longitude">0</li>
-			<li id="gspeed">0</li>
-			<li id="heading">0</li>
-		</ul>
-	</div>
-
-	<div>
-		<p>外部データ</p>
-		<ul>
-			<li id="ex_data1">0</li>
-			<li id="ex_data2">0</li>
-			<li id="ex_data3">0</li>
-			<li id="ex_data4">0</li>
-			<li id="ex_data5">0</li>
-			<li id="ex_data6">0</li>
-			<li id="ex_data7">0</li>
-			<li id="ane_speed">0</li>
-			<li id="ane_temp">0</li>
-		</ul>
-		<input type="button" value="ゼロオフセット" onclick="ane_offset_click();"/> 
-	</div>
-
-	<div>
-		<p>その他</p>
-		<ul>
-			<li id="compass">0</li>
-			<li id="pressure">0</li>
-			<li id="altitude">0</li>
-		</ul>
-	</div>
+  <div class="section-serial" id="sect-serial">
+    Serial: ボーレート
+    <select id="baudrate">
+      <option value="9600">9600</option>
+      <option value="57600">57600</option>
+      <option value="115200" selected>115200</option>
+    </select>
+    <button id="btn-serial-toggle" onclick="serialToggle()">接続</button>
+  </div>
 </div>
-</form>
+
+<div class="ctrl-bar">
+  <div class="cmd-bar">
+    コマンド:
+    <input type="text" id="cmdInput" placeholder="例: cmda" onkeydown="if(event.key==='Enter')sendBtn()">
+    <button onclick="sendBtn()">送信</button>
+  </div>
+  <div class="op-bar">
+    <button onclick="cmdSdcWrite()">SDC書込</button>
+    <button onclick="cmdSdcStop()">SDC停止</button>
+    <button onclick="cmdShutdown()">シャットダウン</button>
+    <button onclick="openSettingDialog()">設定</button>
+    <button onclick="cmdAneOffset()">ゼロオフセット</button>
+  </div>
+</div>
+
+<div id="status-bar">未接続</div>
+
+<div class="container">
+  <div>
+    <p>加速度</p>
+    <ul>
+      <li id="accel_x">x=0 g</li>
+      <li id="accel_y">y=0 g</li>
+      <li id="accel_z">z=0 g</li>
+    </ul>
+  </div>
+
+  <div>
+    <p>角速度</p>
+    <ul>
+      <li id="gyro_x">x=0 deg/s</li>
+      <li id="gyro_y">y=0 deg/s</li>
+      <li id="gyro_z">z=0 deg/s</li>
+    </ul>
+  </div>
+
+  <div>
+    <p>姿勢角</p>
+    <ul>
+      <li id="pitch">Pitch=0 deg</li>
+      <li id="roll">Roll=0 deg</li>
+      <li id="yaw">Yaw=0 deg</li>
+    </ul>
+  </div>
+
+  <div>
+    <p>地磁気</p>
+    <ul>
+      <li id="mag_x">x=0 mG</li>
+      <li id="mag_y">y=0 mG</li>
+      <li id="mag_z">z=0 mG</li>
+    </ul>
+  </div>
+
+  <div>
+    <p>ステータス</p>
+    <ul>
+      <li id="sd_status">SDカード: 不明</li>
+      <li id="gps_status">GPS: 不明</li>
+      <li id="battery">電源: 0 V</li>
+    </ul>
+  </div>
+
+  <div>
+    <p>GPS</p>
+    <ul>
+      <li id="latitude">緯度=0</li>
+      <li id="longitude">経度=0</li>
+      <li id="gspeed">速度=0 m/s</li>
+      <li id="heading">方角=0 deg</li>
+    </ul>
+  </div>
+
+  <div>
+    <p>外部データ</p>
+    <ul>
+      <li id="ex_data1">data1=0</li>
+      <li id="ex_data2">data2=0</li>
+      <li id="ex_data3">data3=0</li>
+      <li id="ex_data4">data4=0</li>
+      <li id="ex_data5">data5=0</li>
+      <li id="ex_data6">data6=0</li>
+      <li id="ex_data7">data7=0</li>
+      <li id="ane_speed">風速=0 m/s</li>
+      <li id="ane_temp">風温=0 ℃</li>
+    </ul>
+  </div>
+
+  <div>
+    <p>その他</p>
+    <ul>
+      <li id="compass">方位=0 deg</li>
+      <li id="pressure">気圧=0 hPa</li>
+      <li id="altitude">高度=0 m</li>
+      <li id="temperature">温度=0 ℃</li>
+    </ul>
+  </div>
+</div>
+
+<!-- 設定ダイアログ -->
+<div class="modal-overlay" id="settingModal">
+  <div class="modal">
+    <h2>EEPROM 設定</h2>
+    <table>
+      <tr>
+        <td>バッテリータイプ:</td>
+        <td>
+          <label><input type="radio" name="batType" value="2"> Li-ion</label>
+          <label><input type="radio" name="batType" value="1"> アルカリ</label>
+          <label><input type="radio" name="batType" value="0" checked> NiMH</label>
+        </td>
+      </tr>
+      <tr>
+        <td>SDCサンプリング:</td>
+        <td>
+          <select id="sdcRate">
+            <option value="0">100Hz(10ms)</option>
+            <option value="1">20Hz(50ms)</option>
+            <option value="2">10Hz(100ms)</option>
+            <option value="3">5Hz(200ms)</option>
+            <option value="4">2Hz(500ms)</option>
+            <option value="5">1Hz(1s)</option>
+          </select>
+        </td>
+      </tr>
+      <tr>
+        <td>GPSサンプリング:</td>
+        <td>
+          <select id="gpsRate">
+            <option value="0">5Hz(200ms)</option>
+            <option value="1">2Hz(500ms)</option>
+            <option value="2">1Hz(1s)</option>
+          </select>
+        </td>
+      </tr>
+      <tr>
+        <td>基準気圧:</td>
+        <td><input type="number" id="pressureZeroInput" value="1013" min="900" max="1100" step="0.1" style="width:80px"> hPa</td>
+      </tr>
+    </table>
+    <div class="modal-btns">
+      <button onclick="eepromRead()">EEPROMから読込</button>
+      <button onclick="eepromWrite()">EEPROMに書込</button>
+      <button onclick="closeSettingDialog()">閉じる</button>
+    </div>
+  </div>
+</div>
 
 <script>
+// ─────────────────────────────────────────────
+// 接続状態
+// ─────────────────────────────────────────────
+let connMode = 'ble';         // 'ble' | 'serial'
+let connected = false;
 
-	// BLE接続用
-	let keyDevice;
-	let keyServer;
-	let keyService;
-	
-	//var accelerometer_device;
-	//var accelerometer_characteristic;
-	 
-	//micro:bit BLE UUID
-	//var ACCELEROMETERSERVICE_SERVICE_UUID       = 'e95d0753-251d-470a-a062-fa1922dfa9a8';
-	//var ACCELEROMETERSERVICE_SERVICE_UUID       = '01020304-0506-0708-0900-0a0b0c0d0e0f';
-	//var ACCELEROMETERDATA_CHARACTERISTIC_UUID   = 'e95dca4b-251d-470a-a062-fa1922dfa9a8';
-	//var ACCELEROMETERDATA_CHARACTERISTIC_UUID   = '11223344-5566-7788-9900-aabbccddeefe';
-	
-	var SENSORLOGGER_SERVICE_UUID          = '6f565fda-2747-492a-76af-bed5cbed5bf1';
-	var COMMAND_WRITE_CHARACTERISTIC_UUID  = '6f565f01-2747-492a-76af-bed5cbed5bf1';
-	var SENSOR_READ_CHARACTERISTIC_UUID    = '6f565f81-2747-492a-76af-bed5cbed5bf1';
-	var GPS_READ_CHARACTERISTIC_UUID       = '6f565f82-2747-492a-76af-bed5cbed5bf1';
-	var EXTERNAL_READ_CHARACTERISTIC_UUID  = '6f565f83-2747-492a-76af-bed5cbed5bf1';
-	var STATUS_READ_CHARACTERISTIC_UUID    = '6f565f84-2747-492a-76af-bed5cbed5bf1';
-	var EEPROM_READ_CHARACTERISTIC_UUID    = '6f565f85-2747-492a-76af-bed5cbed5bf1';
+// BLE
+const SENSORLOGGER_SERVICE_UUID         = '6f565fda-2747-492a-76af-bed5cbed5bf1';
+const COMMAND_WRITE_CHARACTERISTIC_UUID = '6f565f01-2747-492a-76af-bed5cbed5bf1';
+const SENSOR_READ_CHARACTERISTIC_UUID   = '6f565f81-2747-492a-76af-bed5cbed5bf1';
+const GPS_READ_CHARACTERISTIC_UUID      = '6f565f82-2747-492a-76af-bed5cbed5bf1';
+const EXTERNAL_READ_CHARACTERISTIC_UUID = '6f565f83-2747-492a-76af-bed5cbed5bf1';
+const STATUS_READ_CHARACTERISTIC_UUID   = '6f565f84-2747-492a-76af-bed5cbed5bf1';
+const EEPROM_READ_CHARACTERISTIC_UUID   = '6f565f85-2747-492a-76af-bed5cbed5bf1';
 
+let bleDevice, bleService, bleCmdChar, bleEepromChar;
 
-	var accel = [0, 0, 0];
-    var gyro = [0, 0, 0];
-    var mag = [0, 0, 0];
-    var euler = [0, 0, 0];
-	var ex_data = [0, 0, 0, 0, 0, 0, 0];
-	
-	var imu_temp = 0;
-	var pressure = 0;
-    var pres_temp = 0;
-    var altitude = 0;
-	var sd_status = false;
-    var gps_status = false;
-    var battery = 0;
-    var pressure_zero = 1013;
-	var ane_speed = 0;
-	var ane_temp = 0;
-	var ane_offset = 0;
+// Serial
+let serialPort, serialReader, serialWriter;
+let serialReading = false;
 
- 
-	function connect() {
-	  navigator.bluetooth.requestDevice({
-		filters: [{ namePrefix: 'RN', }],
-		optionalServices: [SENSORLOGGER_SERVICE_UUID]
-	  })
-	  .then(device => {
-		keyDevice = device;
-		console.log("device", device);
-		return device.gatt.connect();
-	  })
-	  //ACCELEROMETER
-	  .then(server =>{
-		keyServer = server;
-		console.log("server", server)
-		return server.getPrimaryService(SENSORLOGGER_SERVICE_UUID);
-	  })
-	  .then(service => {
-		keyService = service;
-		console.log("service", service)
-		//return service.getCharacteristic(ACCELEROMETERDATA_CHARACTERISTIC_UUID)
-		return Promise.all([
-        service.getCharacteristic(COMMAND_WRITE_CHARACTERISTIC_UUID),
-        service.getCharacteristic(SENSOR_READ_CHARACTERISTIC_UUID),
-		service.getCharacteristic(GPS_READ_CHARACTERISTIC_UUID),
-        service.getCharacteristic(EXTERNAL_READ_CHARACTERISTIC_UUID),
-		service.getCharacteristic(STATUS_READ_CHARACTERISTIC_UUID),
-        service.getCharacteristic(EEPROM_READ_CHARACTERISTIC_UUID)
-    ]); 
-	  })
-	  .then(chara => {
-		console.log("characteristic:", chara)
-		alert("BLE接続が完了しました。");
-		/*characteristic = chara;
-		characteristic.startNotifications();
-		characteristic.addEventListener('characteristicvaluechanged',onAccelerometerValueChanged); */ 
-		
-		chara[1].startNotifications();
-		chara[2].startNotifications();
-		chara[3].startNotifications();
-		chara[4].startNotifications();
-		
-		chara[1].oncharacteristicvaluechanged = onSensorReadValueChanged;
-		chara[2].oncharacteristicvaluechanged = onGPSReadValueChanged;
-		chara[3].oncharacteristicvaluechanged = onExternalReadValueChanged;
-		chara[4].oncharacteristicvaluechanged = onStatusReadValueChanged;
-		
-	  })  
-	  .catch(error => {
-		alert("BLE接続に失敗しました。もう一度試してみてください");
-		console.log(error);
-	  });    
-	}
-	
-	function SendButton_click() {
-		const text = document.getElementById('sendInput').value;
-		document.getElementById('sendInput').value = "";
+// ─────────────────────────────────────────────
+// センサーデータ変数
+// ─────────────────────────────────────────────
+let accel = [0, 0, 0];
+let gyro  = [0, 0, 0];
+let mag   = [0, 0, 0];
+let euler = [0, 0, 0];
+let ex_data = [0, 0, 0, 0, 0, 0, 0];
+let imu_temp = 0, pressure = 0, pres_temp = 0, altitude = 0;
+let sd_status = false, gps_status = false, battery = 0;
+let pressure_zero = 1013;
+let ane_speed = 0, ane_temp = 0, ane_offset = 0;
 
-		var buffer = (new TextEncoder).encode(text);
-		
-		keyService.getCharacteristic(COMMAND_WRITE_CHARACTERISTIC_UUID)
-        .then(characteristic => {
-            characteristic.writeValue(buffer);
-		//chara[0].writeValue(buffer);
-		//sendSerial(text + "\n");
-		})
+// EEPROM 設定
+let setting_data = [0, 0, 0];
+
+// ─────────────────────────────────────────────
+// モード切替
+// ─────────────────────────────────────────────
+function onModeChange(radio) {
+  connMode = radio.value;
+  document.getElementById('sect-ble').style.display    = connMode === 'ble'    ? 'flex' : 'none';
+  document.getElementById('sect-serial').style.display = connMode === 'serial' ? 'flex' : 'none';
+}
+
+// 初期表示
+document.getElementById('sect-ble').style.display = 'flex';
+
+// ─────────────────────────────────────────────
+// 統一送信
+// ─────────────────────────────────────────────
+async function sendCommand(text) {
+  const buf = new TextEncoder().encode(text);
+  if (connMode === 'ble') {
+    if (!bleCmdChar) return;
+    await bleCmdChar.writeValue(buf);
+  } else {
+    if (!serialWriter) return;
+    await serialWriter.write(buf);
+  }
+}
+
+// バイナリ混在送信 (prefix文字列 + Uint8Array bytes)
+async function sendCommandBin(prefix, bytes) {
+  const prefixBuf = new TextEncoder().encode(prefix);
+  const combined = new Uint8Array(prefixBuf.length + bytes.length);
+  combined.set(prefixBuf, 0);
+  combined.set(bytes, prefixBuf.length);
+  if (connMode === 'ble') {
+    if (!bleCmdChar) return;
+    await bleCmdChar.writeValue(combined);
+  } else {
+    if (!serialWriter) return;
+    await serialWriter.write(combined);
+  }
+}
+
+// ─────────────────────────────────────────────
+// BLE 接続
+// ─────────────────────────────────────────────
+async function bleConnect() {
+  try {
+    setStatus('BLE: デバイス選択中...');
+    bleDevice = await navigator.bluetooth.requestDevice({
+      filters: [{ namePrefix: 'RN' }],
+      optionalServices: [SENSORLOGGER_SERVICE_UUID]
+    });
+
+    bleDevice.addEventListener('gattserverdisconnected', onBleDisconnected);
+
+    setStatus('BLE: 接続中...');
+    const server = await bleDevice.gatt.connect();
+    const service = await server.getPrimaryService(SENSORLOGGER_SERVICE_UUID);
+    bleService = service;
+
+    const chars = await Promise.all([
+      service.getCharacteristic(COMMAND_WRITE_CHARACTERISTIC_UUID),
+      service.getCharacteristic(SENSOR_READ_CHARACTERISTIC_UUID),
+      service.getCharacteristic(GPS_READ_CHARACTERISTIC_UUID),
+      service.getCharacteristic(EXTERNAL_READ_CHARACTERISTIC_UUID),
+      service.getCharacteristic(STATUS_READ_CHARACTERISTIC_UUID),
+      service.getCharacteristic(EEPROM_READ_CHARACTERISTIC_UUID)
+    ]);
+
+    bleCmdChar    = chars[0];
+    bleEepromChar = chars[5];
+
+    await Promise.all([
+      chars[1].startNotifications(),
+      chars[2].startNotifications(),
+      chars[3].startNotifications(),
+      chars[4].startNotifications()
+    ]);
+
+    chars[1].oncharacteristicvaluechanged = (e) => onSensorData(new DataView(e.target.value.buffer), true);
+    chars[2].oncharacteristicvaluechanged = (e) => onGPSData(new DataView(e.target.value.buffer), true);
+    chars[3].oncharacteristicvaluechanged = (e) => onExternalData(new DataView(e.target.value.buffer), true);
+    chars[4].oncharacteristicvaluechanged = (e) => onStatusData(new DataView(e.target.value.buffer), true);
+    chars[5].oncharacteristicvaluechanged = (e) => onEepromData(new DataView(e.target.value.buffer));
+
+    // 全センサー有効化
+    await sendCommand('cmdacmdgcmdqcmdccmdicmdhcmdf');
+
+    connected = true;
+    setStatus('BLE: 接続済み — ' + bleDevice.name);
+    document.getElementById('btn-ble-connect').disabled    = true;
+    document.getElementById('btn-ble-disconnect').disabled = false;
+
+  } catch (err) {
+    setStatus('BLE 接続失敗: ' + err.message);
+    console.error(err);
+  }
+}
+
+function onBleDisconnected() {
+  connected = false;
+  bleCmdChar = null;
+  setStatus('BLE: 切断されました');
+  document.getElementById('btn-ble-connect').disabled    = false;
+  document.getElementById('btn-ble-disconnect').disabled = true;
+}
+
+async function bleDisconnect() {
+  try {
+    await sendCommand('cmdS');
+  } catch (_) {}
+  if (bleDevice && bleDevice.gatt.connected) {
+    bleDevice.gatt.disconnect();
+  }
+}
+
+// ─────────────────────────────────────────────
+// シリアル接続
+// ─────────────────────────────────────────────
+async function serialToggle() {
+  if (connected && connMode === 'serial') {
+    await serialDisconnect();
+  } else {
+    await serialConnect();
+  }
+}
+
+async function serialConnect() {
+  try {
+    setStatus('Serial: ポート選択中...');
+    serialPort = await navigator.serial.requestPort();
+    const baud = parseInt(document.getElementById('baudrate').value, 10);
+    await serialPort.open({ baudRate: baud });
+
+    // raw Uint8Array writer（テキストも手動エンコードして送る）
+    serialWriter = serialPort.writable.getWriter();
+
+    serialReading = true;
+    readSerialLoop();
+
+    // 全センサー有効化
+    await sendCommand('cmdacmdgcmdqcmdccmdicmdhcmdf');
+
+    connected = true;
+    setStatus('Serial: 接続済み');
+    document.getElementById('btn-serial-toggle').textContent = '切断';
+
+  } catch (err) {
+    setStatus('Serial 接続失敗: ' + err.message);
+    console.error(err);
+  }
+}
+
+async function serialDisconnect() {
+  serialReading = false;
+  try { await sendCommand('cmdS'); } catch (_) {}
+  try { await serialReader.cancel(); } catch (_) {}
+  try { serialWriter.releaseLock(); } catch (_) {}
+  try { await serialPort.close(); } catch (_) {}
+  connected = false;
+  setStatus('Serial: 切断しました');
+  document.getElementById('btn-serial-toggle').textContent = '接続';
+}
+
+// ─────────────────────────────────────────────
+// シリアル受信ステートマシン
+// ─────────────────────────────────────────────
+const ST_IDLE       = 0;
+const ST_TYPE       = 1;
+const ST_ACCEL      = 3;   // 6 bytes
+const ST_GYRO       = 4;   // 6 bytes
+const ST_QUAT       = 5;   // 6 bytes
+const ST_COMPASS    = 6;   // 6 bytes
+const ST_SERIAL_EXT = 8;   // 14 bytes
+const ST_STATUS2    = 9;   // 4 bytes
+const ST_EEP_READ   = 10;  // 3 bytes
+const ST_GPS        = 11;  // 16 bytes
+const ST_PRESSURE   = 7;   // 6 bytes
+
+let smState = ST_IDLE;
+let smBuf = [];
+let smExpected = 0;
+let smType = -1;
+
+const TYPE_ACCEL    = 0;
+const TYPE_GYRO     = 1;
+const TYPE_QUAT     = 2;
+const TYPE_COMPASS  = 3;
+const TYPE_PRESSURE = 4;
+const TYPE_GPS      = 5;
+const TYPE_STATUS2  = 7;
+const TYPE_SERIAL   = 8;
+const TYPE_EEP_READ = 145;
+
+async function readSerialLoop() {
+  serialReader = serialPort.readable.getReader();
+  try {
+    while (serialReading) {
+      const { value, done } = await serialReader.read();
+      if (done) break;
+      for (const byte of value) {
+        processByte(byte);
+      }
     }
-	
-	function NotifyButton_SENSOR_click(){
-		keyService.getCharacteristic(SENSOR_READ_CHARACTERISTIC_UUID)
-        .then(characteristic => {
-            characteristic.startNotifications();
-		})
-	}
-	
-	function NotifyButton_GPS_click(){
-		keyService.getCharacteristic(GPS_READ_CHARACTERISTIC_UUID)
-        .then(characteristic => {
-            characteristic.startNotifications();
-		})
-	}
-	
-	function NotifyButton_EXTERNAL_click(){
-		keyService.getCharacteristic(EXTERNAL_READ_CHARACTERISTIC_UUID)
-        .then(characteristic => {
-            characteristic.startNotifications();
-		})
-	}
-	
-	function NotifyButton_STATUS_click(){
-		keyService.getCharacteristic(STATUS_READ_CHARACTERISTIC_UUID)
-        .then(characteristic => {
-            characteristic.startNotifications();
-		})
-	}
-	 
-	function onSensorReadValueChanged(event) {
-		/*AcceleratorX = event.target.value.getUint16(0, true);
-		console.log('x:' + AcceleratorX);
-		document.js.x.value = AcceleratorX;
+  } catch (err) {
+    if (serialReading) console.error('Serial read error:', err);
+  } finally {
+    serialReader.releaseLock();
+  }
+}
 
-		AcceleratorY = event.target.value.getUint16(2, true);
-		console.log('y:' + AcceleratorY);
-		document.js.y.value = AcceleratorY;
+function processByte(b) {
+  if (smState === ST_IDLE) {
+    if (b === 0x24) { // '$'
+      smState = ST_TYPE;
+    }
+    return;
+  }
 
-		AcceleratorZ = event.target.value.getUint16(4, true);
-		console.log('z:' + AcceleratorZ);
-		document.js.z.value = AcceleratorZ;*/
-		
-		let dat = new DataView(event.target.value.buffer, 0);
-		
-		accel[0] = dat.getInt16(0, true) / 16384; // X加速度算出
-		accel[1] = dat.getInt16(2, true) / 16384; // Y加速度算出
-		accel[2] = dat.getInt16(4, true) / 16384; // Z加速度算出
-		
-		gyro[0] = dat.getInt16(6, true) / 131; // X角速度算出
-		gyro[1] = dat.getInt16(8, true) / 131; // Y角速度算出
-		gyro[2] = dat.getInt16(10, true) / 131; // Z角速度算出
-		
-		euler[0] = dat.getInt16(12, true) / 100; // ピッチ算出
-		euler[1] = dat.getInt16(14, true) / 100; // ロール算出
-		euler[2] = dat.getInt16(16, true) / 100; // ヨー算出
-		
-		imu_temp = dat.getInt16(18, true) / 10;
-		
-		pressure = dat.getInt32(20, true) / 100;
-		pres_temp = dat.getInt16(24, true) / 10;
+  if (smState === ST_TYPE) {
+    smType = b;
+    smBuf = [];
+    switch (b) {
+      case TYPE_ACCEL:    smExpected = 6;  smState = ST_ACCEL;      break;
+      case TYPE_GYRO:     smExpected = 6;  smState = ST_GYRO;       break;
+      case TYPE_QUAT:     smExpected = 6;  smState = ST_QUAT;       break;
+      case TYPE_COMPASS:  smExpected = 6;  smState = ST_COMPASS;    break;
+      case TYPE_PRESSURE: smExpected = 6;  smState = ST_PRESSURE;   break;
+      case TYPE_GPS:      smExpected = 16; smState = ST_GPS;        break;
+      case TYPE_STATUS2:  smExpected = 4;  smState = ST_STATUS2;    break;
+      case TYPE_SERIAL:   smExpected = 14; smState = ST_SERIAL_EXT; break;
+      case TYPE_EEP_READ: smExpected = 3;  smState = ST_EEP_READ;   break;
+      default:            smState = ST_IDLE; break;
+    }
+    return;
+  }
 
-		altitude = (Math.pow(pressure_zero / pressure, 1 / 5.257) - 1) * (pres_temp + 273.15) / 0.0065;
-		
-		mag[0] = dat.getInt16(26, true) / 0.73; // X地磁気算出
-		mag[1] = dat.getInt16(28, true) / 0.73; // Y地磁気算出
-		mag[2] = dat.getInt16(30, true) / 0.73; // Z地磁気算出
-		
-		document.getElementById('accel_x').textContent = "x=" + String(accel[0].toFixed(2)) + "g";
-		document.getElementById('accel_y').textContent = "y=" + String(accel[1].toFixed(2)) + "g";
-		document.getElementById('accel_z').textContent = "z=" + String(accel[2].toFixed(2)) + "g";
+  // データ蓄積
+  smBuf.push(b);
+  if (smBuf.length < smExpected) return;
 
-		document.getElementById('gyro_x').textContent = "x=" + String(gyro[0].toFixed(2)) + "deg/s";
-		document.getElementById('gyro_y').textContent = "y=" + String(gyro[1].toFixed(2)) + "deg/s";
-		document.getElementById('gyro_z').textContent = "z=" + String(gyro[2].toFixed(2)) + "deg/s";
-		
-		document.getElementById('pitch').textContent = "x=" + String(euler[0].toFixed(2)) + "deg";
-		document.getElementById('roll').textContent = "y=" + String(euler[1].toFixed(2)) + "deg";
-		document.getElementById('yaw').textContent = "z=" + String(euler[2].toFixed(2)) + "deg";
-		
-		document.getElementById('mag_x').textContent = "x=" + String(mag[0].toFixed(2)) + "mG";
-		document.getElementById('mag_y').textContent = "y=" + String(mag[1].toFixed(2)) + "mG";
-		document.getElementById('mag_z').textContent = "z=" + String(mag[2].toFixed(2)) + "mG";
-		
-		document.getElementById('pressure').textContent = "気圧=" + String(pressure.toFixed(2)) + "hPa";
-        document.getElementById('altitude').textContent = "高度=" + String(altitude.toFixed(1)) + "m";
-		
-		//方位角三次元計算
-		var m = Math.sqrt(mag[0] * mag[0] + mag[1] * mag[1] + mag[2] * mag[2]);
-		mag[0] /= m;
-		mag[1] /= m;
-		mag[2] /= m;
-		var hx = mag[1] * accel[2] - mag[2] * accel[1];
-		var hy = mag[2] * accel[0] - mag[0] * accel[2];
-		var hz = mag[0] * accel[1] - mag[1] * accel[0];
-		var h = Math.sqrt(hx * hx + hy * hy + hz * hz);
+  // パケット完成
+  const dv = new DataView(new Uint8Array(smBuf).buffer);
+  switch (smType) {
+    case TYPE_ACCEL:    onSensorPartial_Accel(dv);    break;
+    case TYPE_GYRO:     onSensorPartial_Gyro(dv);     break;
+    case TYPE_QUAT:     onSensorPartial_Quat(dv);     break;
+    case TYPE_COMPASS:  onSensorPartial_Compass(dv);  break;
+    case TYPE_PRESSURE: onSensorPartial_Pressure(dv); break;
+    case TYPE_GPS:      onGPSData(dv, false);          break;
+    case TYPE_STATUS2:  onStatusData(dv, false);       break;
+    case TYPE_SERIAL:   onExternalData(dv, false);     break;
+    case TYPE_EEP_READ: onEepromData(dv);              break;
+  }
+  smState = ST_IDLE;
+}
 
-		var rx = accel[1] * hz - accel[2] * hy;
-		var ry = accel[2] * hx - accel[0] * hz;
-		var rz = accel[0] * hy - accel[1] * hx;
-		var r = Math.sqrt(rx * rx + ry * ry + rz * rz);
+// シリアル個別センサー
+function onSensorPartial_Accel(dv) {
+  accel[0] = dv.getInt16(0, false) / 16384;
+  accel[1] = dv.getInt16(2, false) / 16384;
+  accel[2] = dv.getInt16(4, false) / 16384;
+  updateAccel();
+}
 
-		var head = Math.atan2(rx / r, hx / h);
-		dat_decimal = head * 180 / Math.PI;
-		if (dat_decimal < 0)
-		{
-			dat_decimal += 360;
-		}
-		//compass_dat = Math.round(dat_decimal, 2, MidpointRounding.AwayFromZero);
-		compass_dat = dat_decimal;
-		
-		document.getElementById('compass').textContent = "方位=" + String(compass_dat.toFixed(1)) + "deg";
+function onSensorPartial_Gyro(dv) {
+  gyro[0] = dv.getInt16(0, false) / 131;
+  gyro[1] = dv.getInt16(2, false) / 131;
+  gyro[2] = dv.getInt16(4, false) / 131;
+  updateGyro();
+}
 
-	} 
-	
-	function onGPSReadValueChanged(event) {
-		let dat = new DataView(event.target.value.buffer, 0);
-		
-		latitude = dat.getInt32(0, true) / 10000000;
-		longitude = dat.getInt32(4, true) / 10000000;
-		gspeed = dat.getInt32(8, true) / 100;
-		heading = dat.getInt32(12, true) / 100000;
-				
-		document.getElementById('latitude').textContent = "緯度=" + String(latitude.toFixed(7));
-		document.getElementById('longitude').textContent = "経度=" + String(longitude.toFixed(7));
-		document.getElementById('gspeed').textContent = "速度=" + String(gspeed.toFixed(2)) + "m/s";
-		document.getElementById('heading').textContent = "方角=" + String(heading.toFixed(1)) + "deg";
-	}
-	
-	function onExternalReadValueChanged(event) {
-		let dat = new DataView(event.target.value.buffer, 0);
-		
-		ex_data[0] = dat.getInt16(0, false);
-		ex_data[1] = dat.getInt16(2, false);
-		ex_data[2] = dat.getInt16(4, true);
-		ex_data[3] = dat.getInt16(6, true);
-		ex_data[4] = dat.getInt16(8, true);
-		ex_data[5] = dat.getInt16(10, true);
-		ex_data[6] = dat.getInt16(12, true);
-		
-		ane_temp = (ex_data[1] - 511) * 0.09765625;
-		//d = 395.673 * Math.sqrt((ex_data[0]+ane_offset)*0.0676*(1.0+0.00366*ane_temp)/101325.0);
-		d = 395.673 * Math.sqrt(((ex_data[0]+ane_offset)*0.95)*0.0676*(1.0+0.00366*ane_temp)/101325.0);
-		if(d >= 1){
-			ane_speed = d;
-		}
-		else{
-			ane_speed = 0;
-		}
-		
-		document.getElementById('ex_data1').textContent = String(ex_data[0]);
-		document.getElementById('ex_data2').textContent = String(ex_data[1]);
-		document.getElementById('ex_data3').textContent = String(ex_data[2]);
-		document.getElementById('ex_data4').textContent = String(ex_data[3]);
-		document.getElementById('ex_data5').textContent = String(ex_data[4]);
-		document.getElementById('ex_data6').textContent = String(ex_data[5]);
-		document.getElementById('ex_data7').textContent = String(ex_data[6]);
-		document.getElementById('ane_speed').textContent = "風速=" + String(ane_speed.toFixed(1)) + "m/s";
-		document.getElementById('ane_temp').textContent = "温度=" + String(ane_temp.toFixed(1)) + "℃";
-	}
-	
-	function onStatusReadValueChanged(event) {
-		let dat = new DataView(event.target.value.buffer, 0);
-		let sdc_str, gps_str;
+function onSensorPartial_Quat(dv) {
+  euler[0] = dv.getInt16(0, false) / 100;
+  euler[1] = dv.getInt16(2, false) / 100;
+  euler[2] = dv.getInt16(4, false) / 100;
+  updateEuler();
+}
 
-		if (dat.getUint8(0) == 2)
-		{
-			sdc_str = "動作中";
-		}
-		else
-		{
-			sdc_str = "停止";
-		}
+function onSensorPartial_Compass(dv) {
+  mag[0] = dv.getInt16(0, false) / 0.73;
+  mag[1] = dv.getInt16(2, false) / 0.73;
+  mag[2] = dv.getInt16(4, false) / 0.73;
+  updateMag();
+}
 
-		if (dat.getUint8(1) == 1)
-		{
-			gps_str = "補足中";
-		}
-		else if (dat.getUint8(1) == 2)
-		{
-			gps_str = "補足中（DGPS）";
-		}
-		else
-		{
-			gps_str = "未補足";
-		}
+function onSensorPartial_Pressure(dv) {
+  pressure  = dv.getInt32(0, false) / 100;
+  pres_temp = dv.getInt16(4, false) / 10;
+  altitude  = (Math.pow(pressure_zero / pressure, 1 / 5.257) - 1) * (pres_temp + 273.15) / 0.0065;
+  updatePressure();
+}
 
-		battery = dat.getInt16(2, false) / 1000;
+// ─────────────────────────────────────────────
+// BLE 共通コールバック（32B センサーパケット）
+// ─────────────────────────────────────────────
+function onSensorData(dv, le) {
+  accel[0] = dv.getInt16(0, le) / 16384;
+  accel[1] = dv.getInt16(2, le) / 16384;
+  accel[2] = dv.getInt16(4, le) / 16384;
 
-		document.getElementById('sd_status').textContent = "SDカード:" + sdc_str;
-		document.getElementById('gps_status').textContent = "GPS:" + gps_str;
-		document.getElementById('battery').textContent = "電源:" + String(battery.toFixed(2)) + "V";
-	}
-	 
-	function disconnect() {
-	  if (!keyDevice || !keyDevice.gatt.connected) return ;
-	  keyDevice.gatt.disconnect();
-	  alert("BLE接続を切断しました。")
-	}
-	
-	function ane_offset_click() {
-	  ane_offset = 0 - ex_data[0];
-	}
- 
-</script>    
+  gyro[0] = dv.getInt16(6, le) / 131;
+  gyro[1] = dv.getInt16(8, le) / 131;
+  gyro[2] = dv.getInt16(10, le) / 131;
+
+  euler[0] = dv.getInt16(12, le) / 100;
+  euler[1] = dv.getInt16(14, le) / 100;
+  euler[2] = dv.getInt16(16, le) / 100;
+
+  imu_temp = dv.getInt16(18, le) / 10;
+
+  pressure  = dv.getInt32(20, le) / 100;
+  pres_temp = dv.getInt16(24, le) / 10;
+  altitude  = (Math.pow(pressure_zero / pressure, 1 / 5.257) - 1) * (pres_temp + 273.15) / 0.0065;
+
+  mag[0] = dv.getInt16(26, le) / 0.73;
+  mag[1] = dv.getInt16(28, le) / 0.73;
+  mag[2] = dv.getInt16(30, le) / 0.73;
+
+  updateAccel();
+  updateGyro();
+  updateEuler();
+  updateMag();
+  updatePressure();
+  updateCompass();
+}
+
+function onGPSData(dv, le) {
+  const latitude  = dv.getInt32(0, le) / 10000000;
+  const longitude = dv.getInt32(4, le) / 10000000;
+  const gspeed    = dv.getInt32(8, le) / 100;
+  const heading   = dv.getInt32(12, le) / 100000;
+
+  document.getElementById('latitude').textContent  = '緯度='  + latitude.toFixed(7);
+  document.getElementById('longitude').textContent = '経度='  + longitude.toFixed(7);
+  document.getElementById('gspeed').textContent    = '速度='  + gspeed.toFixed(2) + ' m/s';
+  document.getElementById('heading').textContent   = '方角='  + heading.toFixed(1) + ' deg';
+}
+
+function onExternalData(dv, le) {
+  // ex_data[0,1] は big-endian 固定（BLE も同様）
+  ex_data[0] = dv.getInt16(0, false);
+  ex_data[1] = dv.getInt16(2, false);
+  ex_data[2] = dv.getInt16(4, le);
+  ex_data[3] = dv.getInt16(6, le);
+  ex_data[4] = dv.getInt16(8, le);
+  ex_data[5] = dv.getInt16(10, le);
+  ex_data[6] = dv.getInt16(12, le);
+
+  ane_temp = (ex_data[1] - 511) * 0.09765625;
+  const d = 395.673 * Math.sqrt((ex_data[0] + ane_offset) * 0.0676 * (1.0 + 0.00366 * ane_temp) / 101325.0);
+  ane_speed = d >= 1 ? d : 0;
+
+  document.getElementById('ex_data1').textContent = 'data1=' + ex_data[0];
+  document.getElementById('ex_data2').textContent = 'data2=' + ex_data[1];
+  document.getElementById('ex_data3').textContent = 'data3=' + ex_data[2];
+  document.getElementById('ex_data4').textContent = 'data4=' + ex_data[3];
+  document.getElementById('ex_data5').textContent = 'data5=' + ex_data[4];
+  document.getElementById('ex_data6').textContent = 'data6=' + ex_data[5];
+  document.getElementById('ex_data7').textContent = 'data7=' + ex_data[6];
+  document.getElementById('ane_speed').textContent = '風速=' + ane_speed.toFixed(1) + ' m/s';
+  document.getElementById('ane_temp').textContent  = '風温=' + ane_temp.toFixed(1)  + ' ℃';
+}
+
+function onStatusData(dv, le) {
+  const sdc  = dv.getUint8(0);
+  const gps  = dv.getUint8(1);
+  battery = dv.getInt16(2, false) / 1000;
+
+  const sdcStr = sdc === 2 ? '動作中' : '停止';
+  let gpsStr;
+  if      (gps === 1) gpsStr = '補足中';
+  else if (gps === 2) gpsStr = '補足中（DGPS）';
+  else                gpsStr = '未補足';
+
+  document.getElementById('sd_status').textContent = 'SDカード: ' + sdcStr;
+  document.getElementById('gps_status').textContent = 'GPS: ' + gpsStr;
+  document.getElementById('battery').textContent    = '電源: ' + battery.toFixed(2) + ' V';
+}
+
+function onEepromData(dv) {
+  // 3 bytes: addr, data_hi, data_lo (仕様に合わせて解釈)
+  const addr = dv.getUint8(0);
+  const val  = dv.getUint8(1);
+  if (addr >= 1 && addr <= 3) {
+    setting_data[addr - 1] = val;
+  }
+  // 3バイト目受信後にUIへ反映
+  if (addr === 3) applySettingToUI();
+}
+
+// ─────────────────────────────────────────────
+// 表示更新ヘルパー
+// ─────────────────────────────────────────────
+function updateAccel() {
+  document.getElementById('accel_x').textContent = 'x=' + accel[0].toFixed(3) + ' g';
+  document.getElementById('accel_y').textContent = 'y=' + accel[1].toFixed(3) + ' g';
+  document.getElementById('accel_z').textContent = 'z=' + accel[2].toFixed(3) + ' g';
+}
+
+function updateGyro() {
+  document.getElementById('gyro_x').textContent = 'x=' + gyro[0].toFixed(2) + ' deg/s';
+  document.getElementById('gyro_y').textContent = 'y=' + gyro[1].toFixed(2) + ' deg/s';
+  document.getElementById('gyro_z').textContent = 'z=' + gyro[2].toFixed(2) + ' deg/s';
+}
+
+function updateEuler() {
+  document.getElementById('pitch').textContent = 'Pitch=' + euler[0].toFixed(2) + ' deg';
+  document.getElementById('roll').textContent  = 'Roll='  + euler[1].toFixed(2) + ' deg';
+  document.getElementById('yaw').textContent   = 'Yaw='   + euler[2].toFixed(2) + ' deg';
+}
+
+function updateMag() {
+  document.getElementById('mag_x').textContent = 'x=' + mag[0].toFixed(1) + ' mG';
+  document.getElementById('mag_y').textContent = 'y=' + mag[1].toFixed(1) + ' mG';
+  document.getElementById('mag_z').textContent = 'z=' + mag[2].toFixed(1) + ' mG';
+}
+
+function updatePressure() {
+  document.getElementById('pressure').textContent    = '気圧=' + pressure.toFixed(2) + ' hPa';
+  document.getElementById('altitude').textContent    = '高度=' + altitude.toFixed(1)  + ' m';
+  document.getElementById('temperature').textContent = '温度=' + pres_temp.toFixed(1) + ' ℃';
+}
+
+function updateCompass() {
+  const mx = mag[0], my = mag[1], mz = mag[2];
+  const ax = accel[0], ay = accel[1], az = accel[2];
+
+  const m = Math.sqrt(mx*mx + my*my + mz*mz);
+  if (m === 0) return;
+  const mnx = mx/m, mny = my/m, mnz = mz/m;
+
+  const hx = mny*az - mnz*ay;
+  const hy = mnz*ax - mnx*az;
+  const hz = mnx*ay - mny*ax;
+  const h  = Math.sqrt(hx*hx + hy*hy + hz*hz);
+
+  const rx = ay*hz - az*hy;
+  const ry = az*hx - ax*hz;
+  const r  = Math.sqrt(rx*rx + ry*ry);
+
+  let deg = Math.atan2(rx/r, hx/h) * 180 / Math.PI;
+  if (deg < 0) deg += 360;
+
+  document.getElementById('compass').textContent = '方位=' + deg.toFixed(1) + ' deg';
+}
+
+// ─────────────────────────────────────────────
+// 機器操作コマンド
+// ─────────────────────────────────────────────
+function sendBtn() {
+  const text = document.getElementById('cmdInput').value.trim();
+  if (!text) return;
+  document.getElementById('cmdInput').value = '';
+  sendCommand(text).catch(err => setStatus('送信失敗: ' + err.message));
+}
+
+function cmdSdcWrite()  { sendCommand('cmdw').catch(e => setStatus('エラー: ' + e.message)); }
+function cmdSdcStop()   { sendCommand('cmds').catch(e => setStatus('エラー: ' + e.message)); }
+function cmdShutdown()  {
+  if (!confirm('シャットダウンしますか？')) return;
+  sendCommand('cmdd').catch(e => setStatus('エラー: ' + e.message));
+}
+function cmdAneOffset() { ane_offset = -ex_data[0]; }
+
+// ─────────────────────────────────────────────
+// EEPROM
+// ─────────────────────────────────────────────
+async function eepromRead() {
+  try {
+    if (connMode === 'ble' && bleEepromChar) {
+      // BLE: notify で受け取るか、直接 readValue × 3
+      for (let addr = 1; addr <= 3; addr++) {
+        await sendCommandBin('cmd', new Uint8Array([0x91, 0x00, addr]));
+        await new Promise(r => setTimeout(r, 100));
+      }
+    } else {
+      for (let addr = 1; addr <= 3; addr++) {
+        await sendCommandBin('cmd', new Uint8Array([0x91, 0x00, addr]));
+        await new Promise(r => setTimeout(r, 100));
+      }
+    }
+    setStatus('EEPROM読込コマンド送信済み');
+  } catch (err) {
+    setStatus('EEPROM読込失敗: ' + err.message);
+  }
+}
+
+async function eepromWrite() {
+  applyUIToSetting();
+  try {
+    for (let addr = 1; addr <= 3; addr++) {
+      await sendCommandBin('cmd', new Uint8Array([0xA1, 0x00, addr, setting_data[addr-1]]));
+      await new Promise(r => setTimeout(r, 100));
+    }
+    setStatus('EEPROM書込コマンド送信済み');
+  } catch (err) {
+    setStatus('EEPROM書込失敗: ' + err.message);
+  }
+}
+
+function applyUIToSetting() {
+  pressure_zero = parseFloat(document.getElementById('pressureZeroInput').value) || 1013;
+
+  const batType = parseInt(document.querySelector('input[name="batType"]:checked').value, 10);
+  const sdcRate = parseInt(document.getElementById('sdcRate').value, 10);
+  const gpsRate = parseInt(document.getElementById('gpsRate').value, 10);
+
+  setting_data[0] = (batType << 4) & 0xFF;
+  setting_data[1] = sdcRate & 0x0F;
+  setting_data[2] = gpsRate & 0x0F;
+}
+
+function applySettingToUI() {
+  const batType = (setting_data[0] >> 4) & 0x03;
+  const sdcRate = setting_data[1] & 0x0F;
+  const gpsRate = setting_data[2] & 0x0F;
+
+  const radios = document.querySelectorAll('input[name="batType"]');
+  radios.forEach(r => { r.checked = parseInt(r.value, 10) === batType; });
+
+  document.getElementById('sdcRate').value = sdcRate;
+  document.getElementById('gpsRate').value = gpsRate;
+}
+
+// ─────────────────────────────────────────────
+// 設定ダイアログ
+// ─────────────────────────────────────────────
+function openSettingDialog() {
+  document.getElementById('pressureZeroInput').value = pressure_zero;
+  document.getElementById('settingModal').classList.add('open');
+}
+
+function closeSettingDialog() {
+  document.getElementById('settingModal').classList.remove('open');
+}
+
+// モーダル外クリックで閉じる
+document.getElementById('settingModal').addEventListener('click', function(e) {
+  if (e.target === this) closeSettingDialog();
+});
+
+// ─────────────────────────────────────────────
+// ステータス表示
+// ─────────────────────────────────────────────
+function setStatus(msg) {
+  document.getElementById('status-bar').textContent = msg;
+  console.log(msg);
+}
+</script>
 </body>
 </html>
