@@ -377,7 +377,11 @@ async function sendCommand(text) {
   const buf = new TextEncoder().encode(text);
   if (connMode === 'ble') {
     if (!bleCmdChar) return;
-    await bleCmdChar.writeValue(buf);
+    try {
+      await bleCmdChar.writeValueWithoutResponse(buf);
+    } catch {
+      await bleCmdChar.writeValue(buf);
+    }
   } else {
     if (!serialWriter) return;
     await serialWriter.write(buf);
@@ -392,7 +396,11 @@ async function sendCommandBin(prefix, bytes) {
   combined.set(bytes, prefixBuf.length);
   if (connMode === 'ble') {
     if (!bleCmdChar) return;
-    await bleCmdChar.writeValue(combined);
+    try {
+      await bleCmdChar.writeValueWithoutResponse(combined);
+    } catch {
+      await bleCmdChar.writeValue(combined);
+    }
   } else {
     if (!serialWriter) return;
     await serialWriter.write(combined);
@@ -417,30 +425,26 @@ async function bleConnect() {
     const service = await server.getPrimaryService(SENSORLOGGER_SERVICE_UUID);
     bleService = service;
 
-    const chars = await Promise.all([
-      service.getCharacteristic(COMMAND_WRITE_CHARACTERISTIC_UUID),
-      service.getCharacteristic(SENSOR_READ_CHARACTERISTIC_UUID),
-      service.getCharacteristic(GPS_READ_CHARACTERISTIC_UUID),
-      service.getCharacteristic(EXTERNAL_READ_CHARACTERISTIC_UUID),
-      service.getCharacteristic(STATUS_READ_CHARACTERISTIC_UUID),
-      service.getCharacteristic(EEPROM_READ_CHARACTERISTIC_UUID)
-    ]);
+    const cmdChar    = await service.getCharacteristic(COMMAND_WRITE_CHARACTERISTIC_UUID);
+    const sensorChar = await service.getCharacteristic(SENSOR_READ_CHARACTERISTIC_UUID);
+    const gpsChar    = await service.getCharacteristic(GPS_READ_CHARACTERISTIC_UUID);
+    const extChar    = await service.getCharacteristic(EXTERNAL_READ_CHARACTERISTIC_UUID);
+    const statusChar = await service.getCharacteristic(STATUS_READ_CHARACTERISTIC_UUID);
+    const eepromChar = await service.getCharacteristic(EEPROM_READ_CHARACTERISTIC_UUID);
 
-    bleCmdChar    = chars[0];
-    bleEepromChar = chars[5];
+    bleCmdChar    = cmdChar;
+    bleEepromChar = eepromChar;
 
-    await Promise.all([
-      chars[1].startNotifications(),
-      chars[2].startNotifications(),
-      chars[3].startNotifications(),
-      chars[4].startNotifications()
-    ]);
+    await sensorChar.startNotifications();
+    await gpsChar.startNotifications();
+    await extChar.startNotifications();
+    await statusChar.startNotifications();
 
-    chars[1].oncharacteristicvaluechanged = (e) => onSensorData(new DataView(e.target.value.buffer), true);
-    chars[2].oncharacteristicvaluechanged = (e) => onGPSData(new DataView(e.target.value.buffer), true);
-    chars[3].oncharacteristicvaluechanged = (e) => onExternalData(new DataView(e.target.value.buffer), true);
-    chars[4].oncharacteristicvaluechanged = (e) => onStatusData(new DataView(e.target.value.buffer), true);
-    chars[5].oncharacteristicvaluechanged = (e) => onEepromData(new DataView(e.target.value.buffer));
+    sensorChar.addEventListener('characteristicvaluechanged', (e) => onSensorData(new DataView(e.target.value.buffer), true));
+    gpsChar.addEventListener('characteristicvaluechanged',    (e) => onGPSData(new DataView(e.target.value.buffer), true));
+    extChar.addEventListener('characteristicvaluechanged',    (e) => onExternalData(new DataView(e.target.value.buffer), true));
+    statusChar.addEventListener('characteristicvaluechanged', (e) => onStatusData(new DataView(e.target.value.buffer), true));
+    eepromChar.addEventListener('characteristicvaluechanged', (e) => onEepromData(new DataView(e.target.value.buffer)));
 
     // 全センサー有効化
     await sendCommand('cmdacmdgcmdqcmdccmdicmdhcmdf');
