@@ -95,7 +95,7 @@
   .container > div p {
     margin: 0 0 6px;
     font-weight: bold;
-    font-size: .95em;
+    font-size: 1.4em;
     border-bottom: 1px solid cornflowerblue;
     padding-bottom: 3px;
   }
@@ -107,7 +107,7 @@
   }
 
   .container > div ul li {
-    font-size: .88em;
+    font-size: 1.5em;
     margin: 2px 0;
   }
 
@@ -183,7 +183,6 @@
     <button onclick="cmdSdcStop()">SDC停止</button>
     <button onclick="cmdShutdown()">シャットダウン</button>
     <button onclick="openSettingDialog()">設定</button>
-    <button onclick="cmdAneOffset()">ゼロオフセット</button>
   </div>
 </div>
 
@@ -258,6 +257,7 @@
       <li id="ane_speed">風速=0 m/s</li>
       <li id="ane_temp">風温=0 ℃</li>
     </ul>
+    <button onclick="cmdAneOffset()" style="margin-top:8px">ゼロオフセット</button>
   </div>
 
   <div>
