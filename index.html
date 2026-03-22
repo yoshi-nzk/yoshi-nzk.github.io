@@ -378,7 +378,7 @@ async function sendCommand(text) {
   if (connMode === 'ble') {
     if (!bleCmdChar) return;
     try {
-      await bleCmdChar.writeValueWithoutResponse(buf);
+      await bleCmdChar.writeValueWithResponse(buf);
     } catch {
       await bleCmdChar.writeValue(buf);
     }
@@ -397,7 +397,7 @@ async function sendCommandBin(prefix, bytes) {
   if (connMode === 'ble') {
     if (!bleCmdChar) return;
     try {
-      await bleCmdChar.writeValueWithoutResponse(combined);
+      await bleCmdChar.writeValueWithResponse(combined);
     } catch {
       await bleCmdChar.writeValue(combined);
     }
