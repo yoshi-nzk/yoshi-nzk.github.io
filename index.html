@@ -610,7 +610,7 @@ function processByte(b) {
     case TYPE_QUAT:     onSensorPartial_Quat(dv);     break;
     case TYPE_COMPASS:  onSensorPartial_Compass(dv);  break;
     case TYPE_PRESSURE: onSensorPartial_Pressure(dv); break;
-    case TYPE_GPS:      onGPSData(dv, false);          break;
+    case TYPE_GPS:      onGPSData(dv, true);          break;
     case TYPE_STATUS2:  onStatusData(dv, false);       break;
     case TYPE_SERIAL:   onExternalData(dv, false);     break;
     case TYPE_EEP_READ: onEepromData(dv);              break;
