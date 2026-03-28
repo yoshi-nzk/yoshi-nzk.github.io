@@ -154,8 +154,8 @@
   #sidebar {
     width: 200px;
     min-height: 100vh;
-    background: #9db0c2;
-    color: #ecf0f1;
+    background: whitesmoke;
+    color: black;
     flex-shrink: 0;
     position: fixed;
     top: 0;
@@ -175,7 +175,7 @@
   }
 
   .sidebar-title {
-    color: #ecf0f1;
+    color: #181b1b;
     font-size: 1.1em;
     font-weight: bold;
     white-space: nowrap;
@@ -188,7 +188,7 @@
   #sidebar ul li a {
     display: block;
     padding: 14px 20px;
-    color: #ecf0f1;
+    color: #181b1b;
     text-decoration: none;
     font-size: 1em;
     border-left: 3px solid transparent;
@@ -196,7 +196,7 @@
 
   #sidebar ul li a:hover,
   #sidebar ul li a.active {
-    background: #3d5166;
+    background: #8b9097;
     border-left-color: #3498db;
   }
 
@@ -223,6 +223,7 @@
   /* ─── メインエリア ─── */
   #main-area {
     flex: 1;
+    align-items: center;
     margin-left: 200px;
     transition: margin-left 0.25s ease;
     min-width: 0;
@@ -237,10 +238,14 @@
     padding: 4px 8px;
   }
 
-  #page-home,
+  #page-home{
+    padding: 10px 16px;
+    max-width: 1000px;
+  }
+
   #page-graph {
     padding: 10px 16px;
-    max-width: 1100px;
+    max-width: 1600px;
   }
 
   /* ─── グラフページ ─── */
@@ -257,7 +262,7 @@
   #graph-canvas {
     display: block;
     width: 100%;
-    height: 400px;
+    aspect-ratio: 16 / 8;
     border: 1px solid #aab;
     border-radius: 4px;
     background: #111;
@@ -1178,36 +1183,36 @@ document.querySelector('#sidebar a[data-page="home"]').classList.add('active');
 let graphAnimId = null;
 
 const GRAPH_SERIES_MAP = {
-  accel:   [
+  accel:   { unit: 'g',     series: [
     { buf: 'accelX', label: 'X',       color: '#e74c3c' },
     { buf: 'accelY', label: 'Y',       color: '#2ecc71' },
     { buf: 'accelZ', label: 'Z',       color: '#3498db' },
-  ],
-  gyro:    [
+  ]},
+  gyro:    { unit: 'deg/s', series: [
     { buf: 'gyroX',  label: 'X',       color: '#e74c3c' },
     { buf: 'gyroY',  label: 'Y',       color: '#2ecc71' },
     { buf: 'gyroZ',  label: 'Z',       color: '#3498db' },
-  ],
-  euler:   [
+  ]},
+  euler:   { unit: 'deg',   series: [
     { buf: 'pitch',  label: 'Pitch',   color: '#e74c3c' },
     { buf: 'roll',   label: 'Roll',    color: '#2ecc71' },
-  ],
-  mag:     [
+  ]},
+  mag:     { unit: 'mG',    series: [
     { buf: 'magX',   label: 'X',       color: '#e74c3c' },
     { buf: 'magY',   label: 'Y',       color: '#2ecc71' },
     { buf: 'magZ',   label: 'Z',       color: '#3498db' },
-  ],
-  bearing: [
+  ]},
+  bearing: { unit: 'deg',   series: [
     { buf: 'yaw',    label: 'Yaw',     color: '#e74c3c' },
     { buf: 'compass',label: 'Compass', color: '#f39c12' },
-  ],
-  speed:   [
+  ]},
+  speed:   { unit: 'm/s',   series: [
     { buf: 'gspeed',   label: 'GPS速度', color: '#3498db' },
     { buf: 'aneSpeed', label: '風速',    color: '#2ecc71' },
-  ],
-  altitude: [
+  ]},
+  altitude: { unit: 'm',    series: [
     { buf: 'altitude', label: '高度',   color: '#9b59b6' },
-  ],
+  ]},
 };
 
 function startGraphLoop() {
@@ -1233,8 +1238,10 @@ function drawGraph() {
 
   var ctx = canvas.getContext('2d');
   var selectVal = document.getElementById('graph-select').value;
-  var series = GRAPH_SERIES_MAP[selectVal];
-  if (!series) return;
+  var entry = GRAPH_SERIES_MAP[selectVal];
+  if (!entry) return;
+  var series = entry.series;
+  var unit = entry.unit;
 
   var fixY = document.getElementById('graph-fix-y').checked;
   var N = GRAPH_SAMPLES;
@@ -1261,7 +1268,7 @@ function drawGraph() {
   }
 
   // マージン
-  var LEFT = 58, RIGHT = 10, TOP = 16, BOTTOM = 24;
+  var LEFT = 68, RIGHT = 10, TOP = 26, BOTTOM = 24;
   var plotW = W - LEFT - RIGHT;
   var plotH = H - TOP - BOTTOM;
 
@@ -1272,7 +1279,7 @@ function drawGraph() {
   // グリッド線
   ctx.strokeStyle = '#2a2a2a';
   ctx.lineWidth = 1;
-  var yGridCount = 5;
+  var yGridCount = 7;
   for (var gi = 0; gi <= yGridCount; gi++) {
     var gy = TOP + plotH * gi / yGridCount;
     ctx.beginPath(); ctx.moveTo(LEFT, gy); ctx.lineTo(LEFT + plotW, gy); ctx.stroke();
@@ -1287,6 +1294,16 @@ function drawGraph() {
     var ly = TOP + plotH * li / yGridCount;
     ctx.fillText(val.toFixed(2), LEFT - 4, ly + 4);
   }
+
+  // Y軸単位ラベル
+  ctx.save();
+  ctx.fillStyle = '#aaa';
+  ctx.font = '11px Arial';
+  ctx.textAlign = 'center';
+  ctx.translate(LEFT - 54, TOP + plotH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText('[' + unit + ']', 0, 0);
+  ctx.restore();
 
   // X軸ラベル
   ctx.fillStyle = '#666';
@@ -1338,7 +1355,7 @@ function onFixYChange() {
   if (checked) {
     // 現在のauto範囲を初期値として設定
     var selectVal = document.getElementById('graph-select').value;
-    var series = GRAPH_SERIES_MAP[selectVal];
+    var series = GRAPH_SERIES_MAP[selectVal].series;
     var mn = Infinity, mx = -Infinity;
     for (var si = 0; si < series.length; si++) {
       var buf = graphBuf[series[si].buf];
