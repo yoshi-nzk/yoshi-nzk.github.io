@@ -9,13 +9,12 @@
   html { font-size: 100%; }
 
   body {
-    width: 95%;
-    max-width: 1100px;
-    margin: 1em auto;
+    margin: 0;
     font: .9em/1.4 Arial, Helvetica, sans-serif;
+    overflow-x: hidden;
   }
 
-  h1 { margin: 0 0 0.5em; font-size: 1.4em; }
+  h1 { margin: 0; font-size: 1.4em; }
 
   .ctrl-bar {
     background: #eef;
@@ -144,11 +143,169 @@
     gap: 8px;
     justify-content: flex-end;
   }
+
+  /* ─── アプリシェル ─── */
+  #app-shell {
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ─── サイドバー ─── */
+  #sidebar {
+    width: 200px;
+    min-height: 100vh;
+    background: #9db0c2;
+    color: #ecf0f1;
+    flex-shrink: 0;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    z-index: 50;
+    box-sizing: border-box;
+    transition: transform 0.25s ease;
+  }
+
+  #sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.15);
+  }
+
+  .sidebar-title {
+    color: #ecf0f1;
+    font-size: 1.1em;
+    font-weight: bold;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #sidebar ul { list-style: none; margin: 0; padding: 0; }
+
+  #sidebar ul li a {
+    display: block;
+    padding: 14px 20px;
+    color: #ecf0f1;
+    text-decoration: none;
+    font-size: 1em;
+    border-left: 3px solid transparent;
+  }
+
+  #sidebar ul li a:hover,
+  #sidebar ul li a.active {
+    background: #3d5166;
+    border-left-color: #3498db;
+  }
+
+  #sidebar-close {
+    background: none;
+    border: none;
+    color: #ecf0f1;
+    font-size: 1.2em;
+    cursor: pointer;
+    padding: 4px 6px;
+    line-height: 1;
+    display: none;
+    flex-shrink: 0;
+  }
+
+  #sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 49;
+  }
+
+  /* ─── メインエリア ─── */
+  #main-area {
+    flex: 1;
+    margin-left: 200px;
+    transition: margin-left 0.25s ease;
+    min-width: 0;
+  }
+
+  #top-bar {
+    display: none;
+  }
+
+  #sidebar-toggle {
+    font-size: 1.2em;
+    padding: 4px 8px;
+  }
+
+  #page-home,
+  #page-graph {
+    padding: 10px 16px;
+    max-width: 1100px;
+  }
+
+  /* ─── グラフページ ─── */
+  #graph-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    padding: 8px 0 12px;
+    border-bottom: 1px solid #ccd;
+    margin-bottom: 10px;
+  }
+
+  #graph-canvas {
+    display: block;
+    width: 100%;
+    height: 400px;
+    border: 1px solid #aab;
+    border-radius: 4px;
+    background: #111;
+    box-sizing: border-box;
+  }
+
+  /* ─── モバイル ─── */
+  @media (max-width: 768px) {
+    #sidebar { transform: translateX(-100%); }
+    #sidebar.open { transform: translateX(0); }
+    #sidebar-close { display: block; }
+    #sidebar-backdrop.open { display: block; }
+    #main-area { margin-left: 0; }
+    #top-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: #f0f0f8;
+      border-bottom: 1px solid #ccd;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+    }
+  }
 </style>
 </head>
 <body>
 
-<h1>Sensor Logger</h1>
+<div id="app-shell">
+  <nav id="sidebar">
+    <div id="sidebar-header">
+      <span class="sidebar-title">Sensor Logger</span>
+      <button id="sidebar-close" onclick="closeSidebar()">✕</button>
+    </div>
+    <ul>
+      <li><a href="#" data-page="home" onclick="showPage('home');return false">ホーム</a></li>
+      <li><a href="#" data-page="graph" onclick="showPage('graph');return false">グラフ</a></li>
+    </ul>
+  </nav>
+  <div id="sidebar-backdrop" onclick="closeSidebar()"></div>
+
+  <div id="main-area">
+    <div id="top-bar">
+      <button id="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+    </div>
+
+    <div id="page-home">
 
 <div class="ctrl-bar">
   <label>接続モード:</label>
@@ -271,6 +428,37 @@
   </div>
 </div>
 
+    </div><!-- end page-home -->
+
+    <div id="page-graph" style="display:none">
+      <div id="graph-controls">
+        <label>データ:
+          <select id="graph-select" onchange="drawGraph()">
+            <option value="accel">加速度</option>
+            <option value="gyro">角速度</option>
+            <option value="euler">姿勢角(Pitch/Roll)</option>
+            <option value="mag">地磁気</option>
+            <option value="bearing">方位角(Yaw/地磁気)</option>
+            <option value="speed">速度(GPS/風速)</option>
+            <option value="altitude">高度</option>
+          </select>
+        </label>
+        <label>
+          <input type="checkbox" id="graph-fix-y" onchange="onFixYChange()"> Y軸固定
+        </label>
+        <span id="graph-ymin-wrap" style="display:none">
+          Min: <input type="number" id="graph-ymin" style="width:60px">
+        </span>
+        <span id="graph-ymax-wrap" style="display:none">
+          Max: <input type="number" id="graph-ymax" style="width:60px">
+        </span>
+      </div>
+      <canvas id="graph-canvas"></canvas>
+    </div>
+
+  </div><!-- end main-area -->
+</div><!-- end app-shell -->
+
 <!-- 設定ダイアログ -->
 <div class="modal-overlay" id="settingModal">
   <div class="modal">
@@ -354,6 +542,34 @@ let imu_temp = 0, pressure = 0, pres_temp = 0, altitude = 0;
 let sd_status = false, gps_status = false, battery = 0;
 let pressure_zero = 1013;
 let ane_speed = 0, ane_temp = 0, ane_offset = 0;
+
+// ─────────────────────────────────────────────
+// グラフ用循環バッファ (600サンプル)
+// ─────────────────────────────────────────────
+const GRAPH_SAMPLES = 600;
+let graphBufIdx = 0;
+const graphBuf = {
+  accelX:   new Float32Array(GRAPH_SAMPLES),
+  accelY:   new Float32Array(GRAPH_SAMPLES),
+  accelZ:   new Float32Array(GRAPH_SAMPLES),
+  gyroX:    new Float32Array(GRAPH_SAMPLES),
+  gyroY:    new Float32Array(GRAPH_SAMPLES),
+  gyroZ:    new Float32Array(GRAPH_SAMPLES),
+  pitch:    new Float32Array(GRAPH_SAMPLES),
+  roll:     new Float32Array(GRAPH_SAMPLES),
+  yaw:      new Float32Array(GRAPH_SAMPLES),
+  magX:     new Float32Array(GRAPH_SAMPLES),
+  magY:     new Float32Array(GRAPH_SAMPLES),
+  magZ:     new Float32Array(GRAPH_SAMPLES),
+  compass:  new Float32Array(GRAPH_SAMPLES),
+  gspeed:   new Float32Array(GRAPH_SAMPLES),
+  aneSpeed: new Float32Array(GRAPH_SAMPLES),
+  altitude: new Float32Array(GRAPH_SAMPLES),
+};
+
+function graphAdvance() {
+  graphBufIdx = (graphBufIdx + 1) % GRAPH_SAMPLES;
+}
 
 // EEPROM 設定
 let setting_data = [0, 0, 0];
@@ -638,6 +854,7 @@ function onSensorPartial_Quat(dv) {
   euler[1] = dv.getInt16(2, false) / 100;
   euler[2] = dv.getInt16(4, false) / 100;
   updateEuler();
+  graphAdvance();
 }
 
 function onSensorPartial_Compass(dv) {
@@ -645,6 +862,7 @@ function onSensorPartial_Compass(dv) {
   mag[1] = dv.getInt16(2, false) / 0.73;
   mag[2] = dv.getInt16(4, false) / 0.73;
   updateMag();
+  updateCompass();
 }
 
 function onSensorPartial_Pressure(dv) {
@@ -686,6 +904,7 @@ function onSensorData(dv, le) {
   updateMag();
   updatePressure();
   updateCompass();
+  graphAdvance();
 }
 
 function onGPSData(dv, le) {
@@ -698,6 +917,7 @@ function onGPSData(dv, le) {
   document.getElementById('longitude').textContent = '経度='  + longitude.toFixed(7);
   document.getElementById('gspeed').textContent    = '速度='  + gspeed.toFixed(2) + ' m/s';
   document.getElementById('heading').textContent   = '方角='  + heading.toFixed(1) + ' deg';
+  graphBuf.gspeed[graphBufIdx] = gspeed;
 }
 
 function onExternalData(dv, le) {
@@ -723,6 +943,7 @@ function onExternalData(dv, le) {
   document.getElementById('ex_data7').textContent = 'data7=' + ex_data[6];
   document.getElementById('ane_speed').textContent = '風速=' + ane_speed.toFixed(1) + ' m/s';
   document.getElementById('ane_temp').textContent  = '風温=' + ane_temp.toFixed(1)  + ' ℃';
+  graphBuf.aneSpeed[graphBufIdx] = ane_speed;
 }
 
 function onStatusData(dv, le) {
@@ -759,30 +980,43 @@ function updateAccel() {
   document.getElementById('accel_x').textContent = 'x=' + accel[0].toFixed(3) + ' g';
   document.getElementById('accel_y').textContent = 'y=' + accel[1].toFixed(3) + ' g';
   document.getElementById('accel_z').textContent = 'z=' + accel[2].toFixed(3) + ' g';
+  graphBuf.accelX[graphBufIdx] = accel[0];
+  graphBuf.accelY[graphBufIdx] = accel[1];
+  graphBuf.accelZ[graphBufIdx] = accel[2];
 }
 
 function updateGyro() {
   document.getElementById('gyro_x').textContent = 'x=' + gyro[0].toFixed(2) + ' deg/s';
   document.getElementById('gyro_y').textContent = 'y=' + gyro[1].toFixed(2) + ' deg/s';
   document.getElementById('gyro_z').textContent = 'z=' + gyro[2].toFixed(2) + ' deg/s';
+  graphBuf.gyroX[graphBufIdx] = gyro[0];
+  graphBuf.gyroY[graphBufIdx] = gyro[1];
+  graphBuf.gyroZ[graphBufIdx] = gyro[2];
 }
 
 function updateEuler() {
   document.getElementById('pitch').textContent = 'Pitch=' + euler[0].toFixed(2) + ' deg';
   document.getElementById('roll').textContent  = 'Roll='  + euler[1].toFixed(2) + ' deg';
   document.getElementById('yaw').textContent   = 'Yaw='   + euler[2].toFixed(2) + ' deg';
+  graphBuf.pitch[graphBufIdx] = euler[0];
+  graphBuf.roll[graphBufIdx]  = euler[1];
+  graphBuf.yaw[graphBufIdx]   = euler[2];
 }
 
 function updateMag() {
   document.getElementById('mag_x').textContent = 'x=' + mag[0].toFixed(1) + ' mG';
   document.getElementById('mag_y').textContent = 'y=' + mag[1].toFixed(1) + ' mG';
   document.getElementById('mag_z').textContent = 'z=' + mag[2].toFixed(1) + ' mG';
+  graphBuf.magX[graphBufIdx] = mag[0];
+  graphBuf.magY[graphBufIdx] = mag[1];
+  graphBuf.magZ[graphBufIdx] = mag[2];
 }
 
 function updatePressure() {
   document.getElementById('pressure').textContent    = '気圧=' + pressure.toFixed(2) + ' hPa';
   document.getElementById('altitude').textContent    = '高度=' + altitude.toFixed(1)  + ' m';
   document.getElementById('temperature').textContent = '温度=' + pres_temp.toFixed(1) + ' ℃';
+  graphBuf.altitude[graphBufIdx] = altitude;
 }
 
 function updateCompass() {
@@ -806,6 +1040,7 @@ function updateCompass() {
   if (deg < 0) deg += 360;
 
   document.getElementById('compass').textContent = '方位=' + deg.toFixed(1) + ' deg';
+  graphBuf.compass[graphBufIdx] = deg;
 }
 
 // ─────────────────────────────────────────────
@@ -909,6 +1144,213 @@ document.getElementById('settingModal').addEventListener('click', function(e) {
 function setStatus(msg) {
   document.getElementById('status-bar').textContent = msg;
   console.log(msg);
+}
+
+// ─────────────────────────────────────────────
+// サイドバー・ナビゲーション
+// ─────────────────────────────────────────────
+function showPage(name) {
+  document.getElementById('page-home').style.display  = name === 'home'  ? '' : 'none';
+  document.getElementById('page-graph').style.display = name === 'graph' ? '' : 'none';
+  document.querySelectorAll('#sidebar ul li a').forEach(function(a) {
+    a.classList.toggle('active', a.dataset.page === name);
+  });
+  if (name === 'graph') startGraphLoop(); else stopGraphLoop();
+  if (window.innerWidth <= 768) closeSidebar();
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-backdrop').classList.toggle('open');
+}
+
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-backdrop').classList.remove('open');
+}
+
+// 初期アクティブ
+document.querySelector('#sidebar a[data-page="home"]').classList.add('active');
+
+// ─────────────────────────────────────────────
+// グラフ描画エンジン (Canvas API)
+// ─────────────────────────────────────────────
+let graphAnimId = null;
+
+const GRAPH_SERIES_MAP = {
+  accel:   [
+    { buf: 'accelX', label: 'X',       color: '#e74c3c' },
+    { buf: 'accelY', label: 'Y',       color: '#2ecc71' },
+    { buf: 'accelZ', label: 'Z',       color: '#3498db' },
+  ],
+  gyro:    [
+    { buf: 'gyroX',  label: 'X',       color: '#e74c3c' },
+    { buf: 'gyroY',  label: 'Y',       color: '#2ecc71' },
+    { buf: 'gyroZ',  label: 'Z',       color: '#3498db' },
+  ],
+  euler:   [
+    { buf: 'pitch',  label: 'Pitch',   color: '#e74c3c' },
+    { buf: 'roll',   label: 'Roll',    color: '#2ecc71' },
+  ],
+  mag:     [
+    { buf: 'magX',   label: 'X',       color: '#e74c3c' },
+    { buf: 'magY',   label: 'Y',       color: '#2ecc71' },
+    { buf: 'magZ',   label: 'Z',       color: '#3498db' },
+  ],
+  bearing: [
+    { buf: 'yaw',    label: 'Yaw',     color: '#e74c3c' },
+    { buf: 'compass',label: 'Compass', color: '#f39c12' },
+  ],
+  speed:   [
+    { buf: 'gspeed',   label: 'GPS速度', color: '#3498db' },
+    { buf: 'aneSpeed', label: '風速',    color: '#2ecc71' },
+  ],
+  altitude: [
+    { buf: 'altitude', label: '高度',   color: '#9b59b6' },
+  ],
+};
+
+function startGraphLoop() {
+  if (graphAnimId) return;
+  graphAnimId = requestAnimationFrame(graphLoop);
+}
+
+function stopGraphLoop() {
+  if (graphAnimId) { cancelAnimationFrame(graphAnimId); graphAnimId = null; }
+}
+
+function graphLoop() {
+  drawGraph();
+  graphAnimId = requestAnimationFrame(graphLoop);
+}
+
+function drawGraph() {
+  var canvas = document.getElementById('graph-canvas');
+  if (!canvas) return;
+  var W = canvas.offsetWidth, H = canvas.offsetHeight;
+  if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; }
+  if (W === 0 || H === 0) return;
+
+  var ctx = canvas.getContext('2d');
+  var selectVal = document.getElementById('graph-select').value;
+  var series = GRAPH_SERIES_MAP[selectVal];
+  if (!series) return;
+
+  var fixY = document.getElementById('graph-fix-y').checked;
+  var N = GRAPH_SAMPLES;
+  var writeIdx = graphBufIdx;
+
+  // Y軸範囲
+  var yMin, yMax;
+  if (fixY) {
+    yMin = parseFloat(document.getElementById('graph-ymin').value);
+    yMax = parseFloat(document.getElementById('graph-ymax').value);
+    if (isNaN(yMin) || isNaN(yMax) || yMin >= yMax) { yMin = -1; yMax = 1; }
+  } else {
+    yMin = Infinity; yMax = -Infinity;
+    for (var si = 0; si < series.length; si++) {
+      var buf = graphBuf[series[si].buf];
+      for (var i = 0; i < N; i++) {
+        if (buf[i] < yMin) yMin = buf[i];
+        if (buf[i] > yMax) yMax = buf[i];
+      }
+    }
+    if (!isFinite(yMin) || yMin === yMax) { yMin -= 1; yMax += 1; }
+    var pad = (yMax - yMin) * 0.05;
+    yMin -= pad; yMax += pad;
+  }
+
+  // マージン
+  var LEFT = 58, RIGHT = 10, TOP = 16, BOTTOM = 24;
+  var plotW = W - LEFT - RIGHT;
+  var plotH = H - TOP - BOTTOM;
+
+  // 背景クリア
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, W, H);
+
+  // グリッド線
+  ctx.strokeStyle = '#2a2a2a';
+  ctx.lineWidth = 1;
+  var yGridCount = 5;
+  for (var gi = 0; gi <= yGridCount; gi++) {
+    var gy = TOP + plotH * gi / yGridCount;
+    ctx.beginPath(); ctx.moveTo(LEFT, gy); ctx.lineTo(LEFT + plotW, gy); ctx.stroke();
+  }
+
+  // Y軸ラベル
+  ctx.fillStyle = '#888';
+  ctx.font = '11px Arial';
+  ctx.textAlign = 'right';
+  for (var li = 0; li <= yGridCount; li++) {
+    var val = yMax - (yMax - yMin) * li / yGridCount;
+    var ly = TOP + plotH * li / yGridCount;
+    ctx.fillText(val.toFixed(2), LEFT - 4, ly + 4);
+  }
+
+  // X軸ラベル
+  ctx.fillStyle = '#666';
+  ctx.textAlign = 'center';
+  ctx.fillText('600 samples →', LEFT + plotW / 2, H - 4);
+
+  // 各系列描画
+  // 左端(px=LEFT) = 最新サンプル(writeIdx-1)
+  // 右端(px=LEFT+plotW) = 最古サンプル(writeIdx)
+  for (var si = 0; si < series.length; si++) {
+    var s = series[si];
+    var sbuf = graphBuf[s.buf];
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    var first = true;
+    for (var i = 0; i < N; i++) {
+      var bufI = (writeIdx - 1 - i + N) % N;
+      var v = sbuf[bufI];
+      var px = LEFT + plotW * (N - 1 - i) / (N - 1);
+      var py = TOP + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
+      py = Math.max(TOP, Math.min(TOP + plotH, py));
+      if (first) { ctx.moveTo(px, py); first = false; }
+      else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+  }
+
+  // 凡例
+  var lx = LEFT + 8;
+  var lly = TOP + 14;
+  ctx.font = '11px Arial';
+  ctx.textAlign = 'left';
+  for (var si = 0; si < series.length; si++) {
+    var s = series[si];
+    ctx.fillStyle = s.color;
+    ctx.fillRect(lx, lly - 8, 16, 3);
+    ctx.fillStyle = '#ddd';
+    ctx.fillText(s.label, lx + 20, lly);
+    lx += ctx.measureText(s.label).width + 38;
+  }
+}
+
+function onFixYChange() {
+  var checked = document.getElementById('graph-fix-y').checked;
+  var show = checked ? '' : 'none';
+  document.getElementById('graph-ymin-wrap').style.display = show;
+  document.getElementById('graph-ymax-wrap').style.display = show;
+  if (checked) {
+    // 現在のauto範囲を初期値として設定
+    var selectVal = document.getElementById('graph-select').value;
+    var series = GRAPH_SERIES_MAP[selectVal];
+    var mn = Infinity, mx = -Infinity;
+    for (var si = 0; si < series.length; si++) {
+      var buf = graphBuf[series[si].buf];
+      for (var i = 0; i < GRAPH_SAMPLES; i++) {
+        if (buf[i] < mn) mn = buf[i];
+        if (buf[i] > mx) mx = buf[i];
+      }
+    }
+    if (!isFinite(mn)) { mn = -1; mx = 1; }
+    document.getElementById('graph-ymin').value = mn.toFixed(2);
+    document.getElementById('graph-ymax').value = mx.toFixed(2);
+  }
 }
 </script>
 </body>
