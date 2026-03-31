@@ -716,7 +716,7 @@ async function serialConnect() {
   try {
     setStatus('Serial: ポート選択中...');
     serialPort = await serial.requestPort({ 
-  filters: [{ usbVendorId: 0x0483 }] // STM32のVIDを指定
+  filters: [{ usbVendorId: 0x05E3 }] // STM32のVIDを指定
 });
     const baud = parseInt(document.getElementById('baudrate').value, 10);
     await serialPort.open({ baudRate: baud });
