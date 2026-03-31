@@ -534,10 +534,10 @@ const EEPROM_READ_CHARACTERISTIC_UUID   = '6f565f85-2747-492a-76af-bed5cbed5bf1'
 let bleDevice, bleService, bleCmdChar, bleEepromChar;
 
 // Serial (Web Serial Polyfill 経由で Android WebUSB にも対応)
-// usbDeviceFilters: STM32 (VID 0x0483) を指定。他のデバイスが必要な場合は追加する
+// STM32 CDC-ACM: VID=0x0483 (STMicroelectronics), PID=0x56B0 (SensorLogger)
 const serial = ('serial' in navigator)
   ? navigator.serial
-  : new SerialPolyfill({ usbDeviceFilters: [{ vendorId: 0x0483 }] });
+  : new SerialPolyfill({ usbDeviceFilters: [{ vendorId: 0x0483, productId: 0x56B0 }] });
 let serialPort, serialReader, serialWriter;
 let serialReading = false;
 
