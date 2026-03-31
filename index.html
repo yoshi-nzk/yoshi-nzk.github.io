@@ -40,6 +40,13 @@
   .section-ble { display: none; }
   .section-serial { display: none; }
 
+  .section-usb {
+    display: none;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
   .cmd-bar {
     display: flex;
     gap: 6px;
@@ -316,6 +323,7 @@
   <label>接続モード:</label>
   <label><input type="radio" name="connMode" value="ble" onchange="onModeChange(this)" checked> Bluetooth</label>
   <label><input type="radio" name="connMode" value="serial" onchange="onModeChange(this)"> シリアル</label>
+  <label><input type="radio" name="connMode" value="usb" onchange="onModeChange(this)"> USB</label>
 
   <div class="section-ble" id="sect-ble">
     BLE:
@@ -331,6 +339,17 @@
       <option value="115200" selected>115200</option>
     </select>
     <button id="btn-serial-toggle" onclick="serialToggle()">接続</button>
+  </div>
+
+  <div class="section-usb" id="sect-usb">
+    USB CDC: ボーレート
+    <select id="usb-baudrate">
+      <option value="9600">9600</option>
+      <option value="57600">57600</option>
+      <option value="115200" selected>115200</option>
+    </select>
+    <button id="btn-usb-connect" onclick="usbConnect()">接続</button>
+    <button id="btn-usb-disconnect" onclick="usbDisconnect()" disabled>切断</button>
   </div>
 </div>
 
@@ -517,7 +536,7 @@
 // ─────────────────────────────────────────────
 // 接続状態
 // ─────────────────────────────────────────────
-let connMode = 'ble';         // 'ble' | 'serial'
+let connMode = 'ble';         // 'ble' | 'serial' | 'usb'
 let connected = false;
 
 // BLE
@@ -534,6 +553,11 @@ let bleDevice, bleService, bleCmdChar, bleEepromChar;
 // Serial
 let serialPort, serialReader, serialWriter;
 let serialReading = false;
+
+// USB (WebUSB / CDC-ACM)
+let usbDevice;
+let usbInEndpoint, usbOutEndpoint;
+let usbReading = false;
 
 // ─────────────────────────────────────────────
 // センサーデータ変数
@@ -586,6 +610,7 @@ function onModeChange(radio) {
   connMode = radio.value;
   document.getElementById('sect-ble').style.display    = connMode === 'ble'    ? 'flex' : 'none';
   document.getElementById('sect-serial').style.display = connMode === 'serial' ? 'flex' : 'none';
+  document.getElementById('sect-usb').style.display    = connMode === 'usb'    ? 'flex' : 'none';
 }
 
 // 初期表示
@@ -603,6 +628,9 @@ async function sendCommand(text) {
     } catch {
       await bleCmdChar.writeValue(buf);
     }
+  } else if (connMode === 'usb') {
+    if (!usbOutEndpoint) return;
+    await usbDevice.transferOut(usbOutEndpoint.endpointNumber, buf);
   } else {
     if (!serialWriter) return;
     await serialWriter.write(buf);
@@ -622,6 +650,9 @@ async function sendCommandBin(prefix, bytes) {
     } catch {
       await bleCmdChar.writeValue(combined);
     }
+  } else if (connMode === 'usb') {
+    if (!usbOutEndpoint) return;
+    await usbDevice.transferOut(usbOutEndpoint.endpointNumber, combined);
   } else {
     if (!serialWriter) return;
     await serialWriter.write(combined);
@@ -744,6 +775,96 @@ async function serialDisconnect() {
   connected = false;
   setStatus('Serial: 切断しました');
   document.getElementById('btn-serial-toggle').textContent = '接続';
+}
+
+// ─────────────────────────────────────────────
+// USB (WebUSB / CDC-ACM) 接続
+// ─────────────────────────────────────────────
+async function usbConnect() {
+  try {
+    setStatus('USB: デバイス選択中...');
+    usbDevice = await navigator.usb.requestDevice({ filters: [] });
+    await usbDevice.open();
+    if (usbDevice.configuration === null) await usbDevice.selectConfiguration(1);
+
+    // CDC Data インターフェース (class=0x0A) と
+    // CDC Communications インターフェース (class=0x02) を探す
+    let dataIf = null, commIfNum = null;
+    for (const iface of usbDevice.configuration.interfaces) {
+      const cls = iface.alternates[0].interfaceClass;
+      if (cls === 0x0A) dataIf = iface;
+      else if (cls === 0x02) commIfNum = iface.interfaceNumber;
+    }
+    if (!dataIf) throw new Error('CDCデータインターフェースが見つかりません');
+
+    await usbDevice.claimInterface(dataIf.interfaceNumber);
+
+    const alt = dataIf.alternates[0];
+    usbInEndpoint  = alt.endpoints.find(e => e.direction === 'in'  && e.type === 'bulk');
+    usbOutEndpoint = alt.endpoints.find(e => e.direction === 'out' && e.type === 'bulk');
+    if (!usbInEndpoint || !usbOutEndpoint) throw new Error('バルクエンドポイントが見つかりません');
+
+    // SET_LINE_CODING (ボーレート・データフォーマット設定)
+    const baud = parseInt(document.getElementById('usb-baudrate').value, 10);
+    const lineCoding = new Uint8Array([
+      baud & 0xFF, (baud >> 8) & 0xFF, (baud >> 16) & 0xFF, (baud >> 24) & 0xFF,
+      0,  // stop bits: 1
+      0,  // parity: none
+      8   // data bits: 8
+    ]);
+    try {
+      const ctrlIdx = commIfNum !== null ? commIfNum : dataIf.interfaceNumber;
+      await usbDevice.controlTransferOut({
+        requestType: 'class', recipient: 'interface',
+        request: 0x20, value: 0, index: ctrlIdx,
+      }, lineCoding);
+      // SET_CONTROL_LINE_STATE (DTR=1, RTS=1)
+      await usbDevice.controlTransferOut({
+        requestType: 'class', recipient: 'interface',
+        request: 0x22, value: 0x03, index: ctrlIdx,
+      });
+    } catch (_) { /* コントロール転送非対応デバイスはスキップ */ }
+
+    usbReading = true;
+    readUsbLoop();
+
+    await sendCommand('cmdacmdgcmdqcmdccmdicmdhcmdf');
+
+    connected = true;
+    setStatus('USB: 接続済み — ' + (usbDevice.productName || 'CDC Device'));
+    document.getElementById('btn-usb-connect').disabled = true;
+    document.getElementById('btn-usb-disconnect').disabled = false;
+  } catch (err) {
+    setStatus('USB 接続失敗: ' + err.message);
+    console.error(err);
+  }
+}
+
+async function usbDisconnect() {
+  usbReading = false;
+  try { await sendCommand('cmdS'); } catch (_) {}
+  try { await usbDevice.close(); } catch (_) {}
+  connected = false;
+  usbDevice = null; usbInEndpoint = usbOutEndpoint = null;
+  setStatus('USB: 切断しました');
+  document.getElementById('btn-usb-connect').disabled = false;
+  document.getElementById('btn-usb-disconnect').disabled = true;
+}
+
+async function readUsbLoop() {
+  while (usbReading) {
+    try {
+      const result = await usbDevice.transferIn(usbInEndpoint.endpointNumber, 64);
+      if (result.data && result.data.byteLength > 0) {
+        for (const byte of new Uint8Array(result.data.buffer)) {
+          processByte(byte);
+        }
+      }
+    } catch (err) {
+      if (usbReading) setStatus('USB 受信エラー: ' + err.message);
+      break;
+    }
+  }
 }
 
 // ─────────────────────────────────────────────
