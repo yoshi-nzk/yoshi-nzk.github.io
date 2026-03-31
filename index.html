@@ -534,10 +534,11 @@ const EEPROM_READ_CHARACTERISTIC_UUID   = '6f565f85-2747-492a-76af-bed5cbed5bf1'
 let bleDevice, bleService, bleCmdChar, bleEepromChar;
 
 // Serial (Web Serial Polyfill 経由で Android WebUSB にも対応)
-// STM32 CDC-ACM: VID=0x0483 (STMicroelectronics), PID=0x56B0 (SensorLogger)
+// STM32 CDC-ACM: VID=0x0483 (STMicroelectronics), PID=0x5710 (SensorLogger 2, USBD_PID=22288)
+const SERIAL_FILTERS = [{ usbVendorId: 0x0483, usbProductId: 0x5710 }];
 const serial = ('serial' in navigator)
   ? navigator.serial
-  : new SerialPolyfill({ usbDeviceFilters: [{ vendorId: 0x0483, productId: 0x56B0 }] });
+  : new SerialPolyfill({ usbDeviceFilters: [{ vendorId: 0x0483, productId: 0x5710 }] });
 let serialPort, serialReader, serialWriter;
 let serialReading = false;
 
@@ -718,7 +719,7 @@ async function serialToggle() {
 async function serialConnect() {
   try {
     setStatus('Serial: ポート選択中...');
-    serialPort = await serial.requestPort();
+    serialPort = await serial.requestPort({ filters: SERIAL_FILTERS });
     const baud = parseInt(document.getElementById('baudrate').value, 10);
     await serialPort.open({ baudRate: baud });
 
