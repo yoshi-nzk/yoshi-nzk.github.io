@@ -1048,7 +1048,7 @@ function updateCompass() {
   const ry = az*hx - ax*hz;
   const r  = Math.sqrt(rx*rx + ry*ry);
 
-  let deg = Math.atan2(rx/r, hx/h) * 180 / Math.PI;
+  let deg = Math.atan2(hy/h, ry/r) * 180 / Math.PI;
   if (deg < 0) deg += 360;
 
   document.getElementById('compass').textContent = '方位=' + deg.toFixed(1) + ' deg';
