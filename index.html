@@ -5,7 +5,6 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, user-scalable=yes">
 <title>Sensor Logger</title>
-<script src="https://unpkg.com/web-serial-polyfill@1.0.14/dist/serial.js"></script>
 <style>
   html { font-size: 100%; }
 
@@ -533,12 +532,8 @@ const EEPROM_READ_CHARACTERISTIC_UUID   = '6f565f85-2747-492a-76af-bed5cbed5bf1'
 
 let bleDevice, bleService, bleCmdChar, bleEepromChar;
 
-// Serial (Web Serial Polyfill 経由で Android WebUSB にも対応)
-// STM32 CDC-ACM: VID=0x0483 (STMicroelectronics), PID=0x5710 (SensorLogger 2, USBD_PID=22288)
-// フィルタなし: PC は全ポート表示、Android は CDC クラス(0x02)のみ表示
-const serial = ('serial' in navigator)
-  ? navigator.serial
-  : new SerialPolyfill({ usbDeviceFilters: [{ classCode: 0x02 }] });
+// Serial
+const serial = navigator.serial;
 let serialPort, serialReader, serialWriter;
 let serialReading = false;
 
