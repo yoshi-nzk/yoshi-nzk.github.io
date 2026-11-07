@@ -670,7 +670,7 @@ async function bleConnect() {
     eepromChar.addEventListener('characteristicvaluechanged', (e) => onEepromData(new DataView(e.target.value.buffer)));
 
     // 全センサー有効化
-    await sendCommand('cmdacmdgcmdqcmdccmdicmdhcmdf');
+    //await sendCommand('cmdacmdgcmdqcmdccmdicmdhcmdf');
 
     connected = true;
     setStatus('BLE: 接続済み — ' + bleDevice.name);
